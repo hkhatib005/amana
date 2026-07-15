@@ -1,16 +1,16 @@
 import * as Location from 'expo-location';
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QiblaCompass } from '@/components/qibla-compass';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { computeQiblaBearing } from '@/lib/qibla';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { UtilityColors } from '@/constants/utility-theme';
+import { computeDistanceToKaabaKm, computeQiblaBearing } from '@/lib/qibla';
 import { usePrayerTimes } from '@/providers/prayer-times-provider';
 
-const COMPASS_SIZE = 260;
+const COMPASS_SIZE = 300;
 
 export default function QiblaScreen() {
   const { coords, permissionDenied, loading, retry } = usePrayerTimes();
@@ -38,126 +38,149 @@ export default function QiblaScreen() {
   }, []);
 
   const qiblaBearing = coords ? computeQiblaBearing(coords.latitude, coords.longitude) : null;
-  const arrowRotation = qiblaBearing != null ? qiblaBearing - (heading ?? 0) : 0;
+  const distanceKm = coords ? computeDistanceToKaabaKm(coords.latitude, coords.longitude) : null;
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={[styles.container, { backgroundColor: UtilityColors.background }]}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title" style={styles.title}>
-          Qibla
-        </ThemedText>
+        <ThemedText style={styles.title}>Qibla</ThemedText>
 
-        {loading && <ThemedText type="small">Finding your location…</ThemedText>}
+        {loading && <Text style={styles.stateMessage}>Finding your location…</Text>}
 
         {!loading && permissionDenied && (
-          <ThemedView type="backgroundElement" style={styles.messageCard}>
-            <ThemedText>
+          <View style={styles.messageCard}>
+            <Text style={styles.messageText}>
               Location access is needed to find the Qibla direction from where you are.
-            </ThemedText>
+            </Text>
             <Pressable onPress={() => Linking.openSettings()}>
-              <ThemedText type="linkPrimary">Open Settings</ThemedText>
+              <Text style={styles.messageLink}>Open Settings</Text>
             </Pressable>
-          </ThemedView>
+          </View>
         )}
 
         {!loading && !permissionDenied && qiblaBearing != null && (
           <>
-            <View style={styles.compassWrapper}>
-              <ThemedView type="backgroundElement" style={styles.compassRing}>
-                <ThemedText style={[styles.ringLabel, styles.ringLabelTop]}>N</ThemedText>
-                <ThemedText style={[styles.ringLabel, styles.ringLabelRight]}>E</ThemedText>
-                <ThemedText style={[styles.ringLabel, styles.ringLabelBottom]}>S</ThemedText>
-                <ThemedText style={[styles.ringLabel, styles.ringLabelLeft]}>W</ThemedText>
-
-                <View style={[styles.arrow, { transform: [{ rotate: `${arrowRotation}deg` }] }]}>
-                  <SymbolView
-                    name={{ ios: 'location.north.fill', android: 'navigation', web: 'navigation' }}
-                    tintColor="#2E7D32"
-                    size={64}
-                  />
-                </View>
-              </ThemedView>
+            <View style={styles.compassWrap}>
+              <QiblaCompass size={COMPASS_SIZE} qiblaBearing={qiblaBearing} heading={heading} />
             </View>
 
-            <ThemedText type="smallBold">{Math.round(qiblaBearing)}° from North</ThemedText>
+            <View style={styles.statsRow}>
+              <View style={styles.statChip}>
+                <Text style={styles.statValue}>{Math.round(qiblaBearing)}°</Text>
+                <Text style={styles.statLabel}>from North</Text>
+              </View>
+              {distanceKm != null && (
+                <View style={styles.statChip}>
+                  <Text style={styles.statValue}>{Math.round(distanceKm).toLocaleString()} km</Text>
+                  <Text style={styles.statLabel}>to the Kaaba</Text>
+                </View>
+              )}
+            </View>
+
+            <Text style={styles.instructions}>
+              Hold your phone flat and turn until the 🕋 needle points straight up, toward the
+              badge at the top of the dial.
+            </Text>
 
             {heading == null && (
-              <ThemedView type="backgroundElement" style={styles.messageCard}>
-                <ThemedText type="small" themeColor="textSecondary">
-                  Compass heading isn&apos;t available on the Simulator, so the arrow is shown
+              <View style={styles.messageCard}>
+                <Text style={styles.messageTextMuted}>
+                  Compass heading isn&apos;t available on the Simulator, so the needle is shown
                   relative to North. This will track your device&apos;s heading live on your
                   iPhone.
-                </ThemedText>
-              </ThemedView>
+                </Text>
+              </View>
             )}
           </>
         )}
 
         {!loading && !permissionDenied && qiblaBearing == null && (
-          <ThemedView type="backgroundElement" style={styles.messageCard}>
-            <ThemedText>Couldn&apos;t determine your location.</ThemedText>
+          <View style={styles.messageCard}>
+            <Text style={styles.messageText}>Couldn&apos;t determine your location.</Text>
             <Pressable onPress={retry}>
-              <ThemedText type="linkPrimary">Try Again</ThemedText>
+              <Text style={styles.messageLink}>Try Again</Text>
             </Pressable>
-          </ThemedView>
+          </View>
         )}
       </SafeAreaView>
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
   },
   safeArea: {
     flex: 1,
-    alignSelf: 'stretch',
+    alignSelf: 'center',
     alignItems: 'center',
+    width: '100%',
+    maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
   title: {
     alignSelf: 'flex-start',
+    color: UtilityColors.textDark,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '700',
     paddingTop: Spacing.three,
+  },
+  stateMessage: {
+    color: UtilityColors.textMuted,
   },
   messageCard: {
     alignSelf: 'stretch',
+    backgroundColor: UtilityColors.card,
     borderRadius: Spacing.four,
     padding: Spacing.four,
     gap: Spacing.three,
   },
-  compassWrapper: {
-    paddingVertical: Spacing.five,
+  messageText: {
+    color: UtilityColors.textDark,
+    fontSize: 16,
   },
-  compassRing: {
-    width: COMPASS_SIZE,
-    height: COMPASS_SIZE,
-    borderRadius: COMPASS_SIZE / 2,
+  messageTextMuted: {
+    color: UtilityColors.textMuted,
+    fontSize: 14,
+  },
+  messageLink: {
+    color: '#3c87f7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  compassWrap: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingTop: Spacing.four,
   },
-  ringLabel: {
-    position: 'absolute',
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+  },
+  statChip: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: UtilityColors.card,
+    borderRadius: Spacing.four,
+    paddingVertical: Spacing.three,
+    gap: Spacing.half,
+  },
+  statValue: {
+    color: UtilityColors.textDark,
+    fontSize: 20,
     fontWeight: '700',
   },
-  ringLabelTop: {
-    top: Spacing.three,
+  statLabel: {
+    color: UtilityColors.textMuted,
+    fontSize: 13,
   },
-  ringLabelBottom: {
-    bottom: Spacing.three,
-  },
-  ringLabelLeft: {
-    left: Spacing.three,
-  },
-  ringLabelRight: {
-    right: Spacing.three,
-  },
-  arrow: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  instructions: {
+    textAlign: 'center',
+    color: '#3c87f7',
+    fontSize: 16,
+    lineHeight: 22,
+    paddingHorizontal: Spacing.three,
   },
 });

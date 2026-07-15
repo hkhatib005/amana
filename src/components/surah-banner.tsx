@@ -1,13 +1,19 @@
+import { useFonts } from 'expo-font';
 import { StyleSheet, Text, View } from 'react-native';
 
 const GOLD = '#C9A227';
+const QURAN_FONT_FAMILY = 'AmiriQuran';
 
 export function SurahBanner({ nameArabic }: { nameArabic: string }) {
+  const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/AmiriQuran.ttf') });
+
   return (
     <View style={styles.outer}>
       <View style={styles.inner}>
         <Text style={styles.ornament}>❖</Text>
-        <Text style={styles.title}>سُورَةُ {nameArabic}</Text>
+        <Text style={[styles.title, fontsLoaded && { fontFamily: QURAN_FONT_FAMILY }]}>
+          سُورَةُ {nameArabic}
+        </Text>
         <Text style={styles.ornament}>❖</Text>
       </View>
     </View>

@@ -13,7 +13,7 @@ type State = {
   error: string | null;
   times: DailyPrayerTimes | null;
   method: PrayerCalculationMethodKey;
-  coords: { latitude: number; longitude: number } | null;
+  coords: { latitude: number; longitude: number; altitude: number | null } | null;
 };
 
 type PrayerTimesContextValue = State & {
@@ -44,7 +44,11 @@ export function PrayerTimesProvider({ children }: { children: ReactNode }) {
 
     try {
       const position = await Location.getCurrentPositionAsync({});
-      const coords = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      const coords = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        altitude: position.coords.altitude,
+      };
       const times = computePrayerTimes(coords.latitude, coords.longitude, method);
       setState({ loading: false, permissionDenied: false, error: null, times, method, coords });
     } catch {

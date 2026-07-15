@@ -10,11 +10,12 @@ import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TILES: {
-  href: '/duas' | '/qibla' | '/islamic-days' | '/masjid' | '/settings' | '/quran';
+  href: '/duas' | '/qibla' | '/islamic-days' | '/masjid' | '/settings' | '/quran' | '/tracker';
   label: string;
   sf: SFSymbol;
 }[] = [
   { href: '/quran', label: "Qur'an", sf: 'book.closed.fill' },
+  { href: '/tracker', label: 'Tracker', sf: 'flame.fill' },
   { href: '/duas', label: 'Duas', sf: 'hands.sparkles.fill' },
   { href: '/qibla', label: 'Qibla', sf: 'safari.fill' },
   { href: '/islamic-days', label: 'Islamic Days', sf: 'moon.stars.fill' },

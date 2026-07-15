@@ -2,34 +2,24 @@ import { router, useFocusEffect } from 'expo-router';
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { startingJuzForChapter } from '@/constants/juz-boundaries';
+import { startingJuzForChapter, startingPageForJuz } from '@/constants/juz-boundaries';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { getQuranChapters, QuranChapter } from '@/lib/quran-chapters';
 import { formatRelativeTime, getRecentReads, RecentRead } from '@/lib/quran-recent';
 
 const JUZ_NUMBERS = Array.from({ length: 30 }, (_, i) => i + 1);
 
-const SUB_NAV: { href: '/quran' | '/quran/notes' | '/quran/bookmarks' | '/quran/search' | '/settings'; label: string; sf: SFSymbol }[] = [
-  { href: '/quran', label: 'Surahs / Juz\'', sf: 'text.book.closed.fill' },
-  { href: '/quran/notes', label: 'Notes', sf: 'note.text' },
-  { href: '/quran/bookmarks', label: 'Bookmarks', sf: 'bookmark.fill' },
-  { href: '/quran/search', label: 'Search', sf: 'magnifyingglass' },
-  { href: '/settings', label: 'Settings', sf: 'gearshape.fill' },
+const TOP_BAR_LINKS: { href: '/quran/notes' | '/quran/bookmarks' | '/quran/search'; sf: SFSymbol }[] = [
+  { href: '/quran/search', sf: 'magnifyingglass' },
+  { href: '/quran/bookmarks', sf: 'bookmark.fill' },
+  { href: '/quran/notes', sf: 'note.text' },
 ];
-
-function promptReadingMode(onChoose: (mode: 'both' | 'arabic') => void) {
-  Alert.alert('Reading Mode', 'How would you like to read?', [
-    { text: 'Arabic + English', onPress: () => onChoose('both') },
-    { text: 'Arabic Only', onPress: () => onChoose('arabic') },
-    { text: 'Cancel', style: 'cancel' },
-  ]);
-}
 
 export default function QuranIndexScreen() {
   const [viewMode, setViewMode] = useState<'surahs' | 'juz'>('surahs');
@@ -65,18 +55,11 @@ export default function QuranIndexScreen() {
   }, [chapters, ascending]);
 
   function openChapter(chapter: QuranChapter) {
-    promptReadingMode((mode) => {
-      router.push({
-        pathname: '/quran/[id]',
-        params: { id: startingJuzForChapter(chapter.id), mode, chapter: chapter.id },
-      });
-    });
+    router.push({ pathname: '/quran/[id]', params: { id: chapter.startPage } });
   }
 
   function openJuz(juz: number) {
-    promptReadingMode((mode) => {
-      router.push({ pathname: '/quran/[id]', params: { id: juz, mode } });
-    });
+    router.push({ pathname: '/quran/[id]', params: { id: startingPageForJuz(juz) } });
   }
 
   return (
@@ -111,11 +94,20 @@ export default function QuranIndexScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.topBarSpacer} />
+          <View style={styles.topBarLinks}>
+            {TOP_BAR_LINKS.map((link) => (
+              <Link key={link.href} href={link.href} asChild>
+                <Pressable hitSlop={8}>
+                  <SymbolView name={link.sf} size={20} />
+                </Pressable>
+              </Link>
+            ))}
+          </View>
         </View>
 
         {viewMode === 'surahs' ? (
           <SectionList
+            style={styles.list}
             sections={groupedSections}
             keyExtractor={(chapter) => String(chapter.id)}
             contentContainerStyle={styles.listContent}
@@ -172,6 +164,7 @@ export default function QuranIndexScreen() {
           />
         ) : (
           <SectionList
+            style={styles.list}
             sections={[{ title: '', data: ascending ? JUZ_NUMBERS : [...JUZ_NUMBERS].reverse() }]}
             keyExtractor={(juz) => String(juz)}
             contentContainerStyle={styles.listContent}
@@ -187,19 +180,6 @@ export default function QuranIndexScreen() {
             )}
           />
         )}
-
-        <View style={styles.subNav}>
-          {SUB_NAV.map((item) => (
-            <Link key={item.href} href={item.href} asChild>
-              <Pressable style={styles.subNavItem}>
-                <SymbolView name={item.sf} size={20} />
-                <ThemedText type="small" style={styles.subNavLabel} numberOfLines={1}>
-                  {item.label}
-                </ThemedText>
-              </Pressable>
-            </Link>
-          ))}
-        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -222,8 +202,9 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     paddingVertical: Spacing.three,
   },
-  topBarSpacer: {
-    width: 20,
+  topBarLinks: {
+    flexDirection: 'row',
+    gap: Spacing.three,
   },
   segmentedControl: {
     flexDirection: 'row',
@@ -235,11 +216,14 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Spacing.three,
   },
-  listContent: {
+  list: {
     alignSelf: 'stretch',
+    width: '100%',
     maxWidth: MaxContentWidth,
+  },
+  listContent: {
     gap: Spacing.two,
-    paddingBottom: Spacing.four,
+    paddingBottom: BottomTabInset + Spacing.four,
   },
   recentSection: {
     marginBottom: Spacing.four,
@@ -287,24 +271,5 @@ const styles = StyleSheet.create({
   },
   rowArabic: {
     fontSize: 15,
-  },
-  subNav: {
-    flexDirection: 'row',
-    alignSelf: 'stretch',
-    maxWidth: MaxContentWidth,
-    justifyContent: 'space-around',
-    paddingTop: Spacing.three,
-    paddingBottom: BottomTabInset,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(128,128,128,0.3)',
-  },
-  subNavItem: {
-    alignItems: 'center',
-    gap: Spacing.one,
-    width: 64,
-  },
-  subNavLabel: {
-    textAlign: 'center',
-    fontSize: 11,
   },
 });

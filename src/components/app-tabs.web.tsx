@@ -30,8 +30,8 @@ export default function AppTabs() {
           <TabTrigger name="qibla" href="/qibla" asChild>
             <TabButton>Qibla</TabButton>
           </TabTrigger>
-          <TabTrigger name="tracker" href="/tracker" asChild>
-            <TabButton>Tracker</TabButton>
+          <TabTrigger name="quran" href="/quran" asChild>
+            <TabButton>Qur&apos;an</TabButton>
           </TabTrigger>
           <TabTrigger name="more" href="/more" asChild>
             <TabButton>More</TabButton>

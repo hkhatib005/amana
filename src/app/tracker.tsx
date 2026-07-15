@@ -5,8 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { usePrayerTracker } from '@/hooks/use-prayer-tracker';
 import { dateKey, isDayComplete, TRACKED_PRAYERS, TrackedPrayer } from '@/lib/prayer-tracker';
+import { usePrayerTracker } from '@/providers/prayer-tracker-provider';
 
 const PRAYER_LABELS: Record<TrackedPrayer, string> = {
   fajr: 'Fajr',

@@ -47,3 +47,16 @@ export function startingJuzForChapter(chapterId: number): number {
   }
   return result;
 }
+
+/**
+ * The mushaf page each Juz' begins on — standard, fixed across the 604-page Madani mushaf
+ * layout used by quran.com and virtually every Qur'an app.
+ */
+export const JUZ_START_PAGES: number[] = [
+  1, 22, 42, 62, 82, 102, 121, 142, 162, 182, 201, 222, 242, 262, 282, 302, 322, 342, 362, 382,
+  402, 422, 442, 462, 482, 502, 522, 542, 562, 582,
+];
+
+export function startingPageForJuz(juz: number): number {
+  return JUZ_START_PAGES[juz - 1] ?? 1;
+}

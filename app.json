@@ -40,7 +40,8 @@
         {
           "locationWhenInUsePermission": "Islamic App uses your location to calculate accurate prayer times and the Qibla direction for where you are."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true,

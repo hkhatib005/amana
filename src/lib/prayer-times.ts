@@ -36,6 +36,12 @@ export function isMorningAdhkarTime(fajr: Date, asr: Date, now: Date = new Date(
   return now.getTime() >= fajr.getTime() && now.getTime() < asr.getTime();
 }
 
+/** Start of the last third of the night (Maghrib → next day's Fajr) — the recommended Tahajjud window. */
+export function computeTahajjudTime(maghrib: Date, nextFajr: Date): Date {
+  const nightMs = nextFajr.getTime() - maghrib.getTime();
+  return new Date(maghrib.getTime() + (2 * nightMs) / 3);
+}
+
 const PRAYER_ORDER = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
 
 export function currentAndNextPrayer(times: DailyPrayerTimes, now: Date = new Date()) {
