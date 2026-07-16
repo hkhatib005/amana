@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MushafPager, MushafPageInfo } from '@/components/mushaf-pager';
+import { MushafPager, MushafPageInfo, useManuscriptColors } from '@/components/mushaf-pager';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -21,6 +21,7 @@ export default function QuranReaderScreen() {
   const [chromeVisible, setChromeVisible] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
+  const manuscript = useManuscriptColors();
 
   useEffect(() => {
     getQuranChapters().then(setChapters);
@@ -55,7 +56,7 @@ export default function QuranReaderScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView style={[styles.container, { backgroundColor: manuscript.background }]}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()} hitSlop={8}>

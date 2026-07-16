@@ -6,7 +6,7 @@ import PagerView from 'react-native-pager-view';
 
 import { SurahBanner } from '@/components/surah-banner';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { toArabicIndicDigits } from '@/lib/arabic-numerals';
 import { QuranChapter } from '@/lib/quran-chapters';
 import { getPageVerses, QuranPageVerse, TOTAL_MUSHAF_PAGES } from '@/lib/quran-page-data';
@@ -15,6 +15,16 @@ import { getVerseAudioUrl } from '@/lib/quran-foundation-client';
 const QURAN_FONT_FAMILY = 'UthmanicHafs';
 
 const PRELOAD_RADIUS = 2;
+
+export const MANUSCRIPT_COLORS = {
+  light: { background: '#FBF3E2', text: '#2A2018', textSecondary: '#8C7A5D' },
+  dark: { background: '#1B1712', text: '#EDE0C8', textSecondary: '#A6926B' },
+};
+
+export function useManuscriptColors() {
+  const scheme = useColorScheme();
+  return MANUSCRIPT_COLORS[scheme === 'dark' ? 'dark' : 'light'];
+}
 
 export type MushafPageInfo = { pageNumber: number; juzNumber: number; chapterId: number };
 
@@ -44,7 +54,7 @@ function MushafPageContent({
   loadingVerseKey: string | null;
   onVersePress: (verseKey: string) => void;
 }) {
-  const theme = useTheme();
+  const theme = useManuscriptColors();
 
   const segments = useMemo(() => {
     if (!verses) return [];
@@ -141,6 +151,7 @@ export function MushafPager({
   const loadingPages = useRef<Set<number>>(new Set());
   const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/UthmanicHafs.ttf') });
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
+  const manuscript = useManuscriptColors();
 
   const player = useAudioPlayer(null);
   const playerStatus = useAudioPlayerStatus(player);
@@ -205,7 +216,7 @@ export function MushafPager({
   return (
     <PagerView
       ref={pagerRef}
-      style={styles.pager}
+      style={[styles.pager, { backgroundColor: manuscript.background }]}
       layoutDirection="rtl"
       initialPage={initialPageNumber - 1}
       offscreenPageLimit={PRELOAD_RADIUS}
@@ -214,7 +225,7 @@ export function MushafPager({
         const pageNumber = i + 1;
         const withinWindow = Math.abs(pageNumber - (pageIndex + 1)) <= PRELOAD_RADIUS;
         return (
-          <View key={pageNumber} style={styles.page}>
+          <View key={pageNumber} style={[styles.page, { backgroundColor: manuscript.background }]}>
             {withinWindow && (
               <MushafPageContent
                 pageNumber={pageNumber}
