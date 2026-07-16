@@ -12,6 +12,12 @@ import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getQuranChapters, QuranChapter } from '@/lib/quran-chapters';
 import { DEFAULT_RECITER_ID, getReciters, Reciter } from '@/lib/quran-foundation-client';
 import { recordRecentRead } from '@/lib/quran-recent';
+import {
+  DEFAULT_TEXT_SIZE_SCALE,
+  getTextSizeScale,
+  setTextSizeScale as persistTextSizeScale,
+  TEXT_SIZE_OPTIONS,
+} from '@/lib/quran-text-size';
 import { useTabBarVisibility } from '@/providers/tab-bar-visibility-provider';
 
 export default function QuranReaderScreen() {
@@ -24,6 +30,7 @@ export default function QuranReaderScreen() {
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [reciterId, setReciterId] = useState(DEFAULT_RECITER_ID);
+  const [textSizeScale, setTextSizeScale] = useState(DEFAULT_TEXT_SIZE_SCALE);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const manuscript = useManuscriptColors();
 
@@ -34,6 +41,15 @@ export default function QuranReaderScreen() {
   useEffect(() => {
     getReciters().then(setReciters);
   }, []);
+
+  useEffect(() => {
+    getTextSizeScale().then(setTextSizeScale);
+  }, []);
+
+  function chooseTextSizeScale(scale: number) {
+    setTextSizeScale(scale);
+    persistTextSizeScale(scale);
+  }
 
   useEffect(() => {
     ScreenOrientation.unlockAsync();
@@ -123,6 +139,28 @@ export default function QuranReaderScreen() {
               </Pressable>
             </View>
 
+            <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
+              Text Size
+            </ThemedText>
+            <View style={styles.textSizeRow}>
+              {TEXT_SIZE_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.label}
+                  style={styles.textSizeButton}
+                  onPress={() => chooseTextSizeScale(option.scale)}>
+                  <ThemedView
+                    type={option.scale === textSizeScale ? 'backgroundSelected' : 'backgroundElement'}
+                    style={styles.textSizeButtonInner}>
+                    <ThemedText
+                      type={option.scale === textSizeScale ? 'smallBold' : 'small'}
+                      style={{ fontSize: 13 + option.scale * 4 }}>
+                      A
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+              ))}
+            </View>
+
             {reciters.length > 0 && (
               <>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
@@ -153,6 +191,7 @@ export default function QuranReaderScreen() {
               chapters={chapters}
               showTranslation={showTranslation}
               reciterId={reciterId}
+              textSizeScale={textSizeScale}
               onPageInfoChange={handlePageInfoChange}
             />
           </Pressable>
@@ -191,7 +230,7 @@ const styles = StyleSheet.create({
     right: Spacing.four,
     zIndex: 10,
     width: 220,
-    maxHeight: 340,
+    maxHeight: 420,
     borderRadius: Spacing.three,
     padding: Spacing.two,
   },
@@ -205,6 +244,20 @@ const styles = StyleSheet.create({
   },
   reciterRow: {
     paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+  },
+  textSizeRow: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+    paddingBottom: Spacing.two,
+  },
+  textSizeButton: {
+    flex: 1,
+  },
+  textSizeButtonInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
   },

@@ -42,6 +42,7 @@ type MushafPagerProps = {
   chapters: QuranChapter[];
   showTranslation: boolean;
   reciterId: number;
+  textSizeScale: number;
   onPageInfoChange: (info: MushafPageInfo) => void;
 };
 
@@ -53,6 +54,7 @@ function MushafPageContent({
   fontFamily,
   activeVerseKey,
   loadingVerseKey,
+  textSizeScale,
   onVersePress,
 }: {
   pageNumber: number;
@@ -62,15 +64,22 @@ function MushafPageContent({
   fontFamily: string | undefined;
   activeVerseKey: string | null;
   loadingVerseKey: string | null;
+  textSizeScale: number;
   onVersePress: (verseKey: string) => void;
 }) {
   const theme = useManuscriptColors();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const flowingTextSize = isLandscape
-    ? { fontSize: 22, lineHeight: 62 }
-    : { fontSize: 17, lineHeight: 48 };
-  const translationTextSize = isLandscape ? { fontSize: 19, lineHeight: 28 } : undefined;
+  const baseFlowing = isLandscape ? { fontSize: 22, lineHeight: 62 } : { fontSize: 17, lineHeight: 48 };
+  const baseTranslation = isLandscape ? { fontSize: 19, lineHeight: 28 } : { fontSize: 15, lineHeight: 22 };
+  const flowingTextSize = {
+    fontSize: Math.round(baseFlowing.fontSize * textSizeScale),
+    lineHeight: Math.round(baseFlowing.lineHeight * textSizeScale),
+  };
+  const translationTextSize = {
+    fontSize: Math.round(baseTranslation.fontSize * textSizeScale),
+    lineHeight: Math.round(baseTranslation.lineHeight * textSizeScale),
+  };
 
   const segments = useMemo(() => {
     if (!verses) return [];
@@ -163,6 +172,7 @@ export function MushafPager({
   chapters,
   showTranslation,
   reciterId,
+  textSizeScale,
   onPageInfoChange,
 }: MushafPagerProps) {
   const pagerRef = useRef<PagerView>(null);
@@ -371,6 +381,7 @@ export function MushafPager({
                 fontFamily={fontFamily}
                 activeVerseKey={activeVerseKey}
                 loadingVerseKey={loadingVerseKey}
+                textSizeScale={textSizeScale}
                 onVersePress={playVerse}
               />
             )}
