@@ -1,6 +1,14 @@
 import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -37,6 +45,17 @@ export function useManuscriptColors() {
 
 export type MushafPageInfo = { pageNumber: number; juzNumber: number; chapterId: number };
 
+export type PlaybackState = { playing: boolean; playbackRate: number } | null;
+
+export type MushafPagerHandle = {
+  play: () => void;
+  pause: () => void;
+  next: () => void;
+  previous: () => void;
+  stop: () => void;
+  setPlaybackRate: (rate: number) => void;
+};
+
 type MushafPagerProps = {
   initialPageNumber: number;
   chapters: QuranChapter[];
@@ -44,6 +63,7 @@ type MushafPagerProps = {
   reciterId: number;
   textSizeScale: number;
   onPageInfoChange: (info: MushafPageInfo) => void;
+  onPlaybackStateChange: (state: PlaybackState) => void;
 };
 
 function MushafPageContent({
@@ -167,14 +187,10 @@ function MushafPageContent({
   );
 }
 
-export function MushafPager({
-  initialPageNumber,
-  chapters,
-  showTranslation,
-  reciterId,
-  textSizeScale,
-  onPageInfoChange,
-}: MushafPagerProps) {
+export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(function MushafPager(
+  { initialPageNumber, chapters, showTranslation, reciterId, textSizeScale, onPageInfoChange, onPlaybackStateChange },
+  ref,
+) {
   const pagerRef = useRef<PagerView>(null);
   const [pageIndex, setPageIndex] = useState(initialPageNumber - 1);
   const [pagesData, setPagesData] = useState<Record<number, QuranPageVerse[]>>({});
@@ -230,6 +246,31 @@ export function MushafPager({
     if (playlistStatus.trackCount === 0) return;
     setActiveVerseKey(playlistVerseKeysRef.current[playlistStatus.currentIndex] ?? null);
   }, [playlistStatus.currentIndex, playlistStatus.trackCount]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      play: () => playlist.play(),
+      pause: () => playlist.pause(),
+      next: () => playlist.next(),
+      previous: () => playlist.previous(),
+      stop: () => {
+        playlist.clear();
+        playlistVerseKeysRef.current = [];
+        setActiveVerseKey(null);
+      },
+      setPlaybackRate: (rate: number) => {
+        playlist.playbackRate = rate;
+      },
+    }),
+    [playlist],
+  );
+
+  useEffect(() => {
+    onPlaybackStateChange(
+      activeVerseKey ? { playing: playlistStatus.playing, playbackRate: playlistStatus.playbackRate } : null,
+    );
+  }, [activeVerseKey, playlistStatus.playing, playlistStatus.playbackRate, onPlaybackStateChange]);
 
   // Clear the highlight once the last queued track finishes with nothing further to play.
   useEffect(() => {
@@ -390,7 +431,7 @@ export function MushafPager({
       })}
     </PagerView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   pager: {

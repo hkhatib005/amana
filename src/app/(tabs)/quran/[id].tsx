@@ -1,11 +1,17 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { MushafPager, MushafPageInfo, useManuscriptColors } from '@/components/mushaf-pager';
+import {
+  MushafPager,
+  MushafPageInfo,
+  MushafPagerHandle,
+  PlaybackState,
+  useManuscriptColors,
+} from '@/components/mushaf-pager';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -20,6 +26,8 @@ import {
 } from '@/lib/quran-text-size';
 import { useTabBarVisibility } from '@/providers/tab-bar-visibility-provider';
 
+const PLAYBACK_RATES = [1, 1.25, 0.75];
+
 export default function QuranReaderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const initialPageNumber = Number(id) || 1;
@@ -31,8 +39,17 @@ export default function QuranReaderScreen() {
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [reciterId, setReciterId] = useState(DEFAULT_RECITER_ID);
   const [textSizeScale, setTextSizeScale] = useState(DEFAULT_TEXT_SIZE_SCALE);
+  const [playbackState, setPlaybackState] = useState<PlaybackState>(null);
+  const pagerHandleRef = useRef<MushafPagerHandle>(null);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const manuscript = useManuscriptColors();
+
+  function cyclePlaybackRate() {
+    if (!playbackState) return;
+    const currentIndex = PLAYBACK_RATES.indexOf(playbackState.playbackRate);
+    const nextRate = PLAYBACK_RATES[(currentIndex + 1) % PLAYBACK_RATES.length];
+    pagerHandleRef.current?.setPlaybackRate(nextRate);
+  }
 
   useEffect(() => {
     getQuranChapters().then(setChapters);
@@ -187,14 +204,57 @@ export default function QuranReaderScreen() {
         {chapters && (
           <Pressable style={styles.pagerWrap} onPress={toggleChrome}>
             <MushafPager
+              ref={pagerHandleRef}
               initialPageNumber={initialPageNumber}
               chapters={chapters}
               showTranslation={showTranslation}
               reciterId={reciterId}
               textSizeScale={textSizeScale}
               onPageInfoChange={handlePageInfoChange}
+              onPlaybackStateChange={setPlaybackState}
             />
           </Pressable>
+        )}
+
+        {playbackState && (
+          <ThemedView type="backgroundElement" style={styles.playbackBar}>
+            <Pressable onPress={() => pagerHandleRef.current?.stop()} hitSlop={8}>
+              <SymbolView name={{ ios: 'stop.fill', android: 'stop', web: 'stop' }} size={18} />
+            </Pressable>
+
+            <Pressable onPress={cyclePlaybackRate} hitSlop={8}>
+              <ThemedText type="smallBold">{playbackState.playbackRate}x</ThemedText>
+            </Pressable>
+
+            <Pressable onPress={() => pagerHandleRef.current?.previous()} hitSlop={8}>
+              <SymbolView
+                name={{ ios: 'backward.fill', android: 'skip_previous', web: 'skip_previous' }}
+                size={20}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                playbackState.playing ? pagerHandleRef.current?.pause() : pagerHandleRef.current?.play()
+              }
+              hitSlop={8}>
+              <SymbolView
+                name={{
+                  ios: playbackState.playing ? 'pause.fill' : 'play.fill',
+                  android: playbackState.playing ? 'pause' : 'play_arrow',
+                  web: playbackState.playing ? 'pause' : 'play_arrow',
+                }}
+                size={30}
+              />
+            </Pressable>
+
+            <Pressable onPress={() => pagerHandleRef.current?.next()} hitSlop={8}>
+              <SymbolView
+                name={{ ios: 'forward.fill', android: 'skip_next', web: 'skip_next' }}
+                size={20}
+              />
+            </Pressable>
+          </ThemedView>
         )}
 
       </SafeAreaView>
@@ -273,5 +333,17 @@ const styles = StyleSheet.create({
   },
   pagerWrap: {
     flex: 1,
+  },
+  playbackBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-evenly',
+    alignSelf: 'center',
+    maxWidth: MaxContentWidth,
+    width: '100%',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    borderTopLeftRadius: Spacing.four,
+    borderTopRightRadius: Spacing.four,
   },
 });
