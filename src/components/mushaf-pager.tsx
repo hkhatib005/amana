@@ -1,4 +1,4 @@
-import { useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -34,6 +34,7 @@ type MushafPagerProps = {
   initialPageNumber: number;
   chapters: QuranChapter[];
   showTranslation: boolean;
+  reciterId: number;
   onPageInfoChange: (info: MushafPageInfo) => void;
 };
 
@@ -147,6 +148,7 @@ export function MushafPager({
   initialPageNumber,
   chapters,
   showTranslation,
+  reciterId,
   onPageInfoChange,
 }: MushafPagerProps) {
   const pagerRef = useRef<PagerView>(null);
@@ -163,6 +165,41 @@ export function MushafPager({
   const playlistThroughPageRef = useRef<number>(0);
   const [activeVerseKey, setActiveVerseKey] = useState<string | null>(null);
   const [loadingVerseKey, setLoadingVerseKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAudioModeAsync({
+      shouldPlayInBackground: true,
+      playsInSilentMode: true,
+      interruptionMode: 'doNotMix',
+    });
+  }, []);
+
+  // Rebuild the current queue with the new reciter's audio, resuming at the same verse.
+  const prevReciterIdRef = useRef(reciterId);
+  useEffect(() => {
+    if (reciterId === prevReciterIdRef.current) return;
+    prevReciterIdRef.current = reciterId;
+    const keys = playlistVerseKeysRef.current;
+    if (keys.length === 0) return;
+    const resumeIndex = playlistStatus.currentIndex;
+    const wasPlaying = playlistStatus.playing;
+    getVerseAudioUrls(keys, reciterId).then((urls) => {
+      playlist.clear();
+      const newKeys: string[] = [];
+      keys.forEach((key, i) => {
+        const url = urls[i];
+        if (!url) return;
+        playlist.add({ uri: url });
+        newKeys.push(key);
+      });
+      playlistVerseKeysRef.current = newKeys;
+      const newIndex = Math.min(resumeIndex, newKeys.length - 1);
+      if (newIndex >= 0) {
+        playlist.skipTo(newIndex);
+        if (wasPlaying) playlist.play();
+      }
+    });
+  }, [reciterId, playlist, playlistStatus.currentIndex, playlistStatus.playing]);
 
   // Keep the highlighted verse in sync with the playlist's current track.
   useEffect(() => {
@@ -229,7 +266,10 @@ export function MushafPager({
     const nextVerses = pagesData[nextPage];
     if (!nextVerses) return;
     playlistThroughPageRef.current = nextPage;
-    getVerseAudioUrls(nextVerses.map((v) => v.key)).then((urls) => {
+    getVerseAudioUrls(
+      nextVerses.map((v) => v.key),
+      reciterId,
+    ).then((urls) => {
       nextVerses.forEach((verse, i) => {
         const url = urls[i];
         if (!url) return;
@@ -237,7 +277,7 @@ export function MushafPager({
         playlistVerseKeysRef.current.push(verse.key);
       });
     });
-  }, [pagesData, playlist]);
+  }, [pagesData, playlist, reciterId]);
 
   const playVerse = useCallback(
     async (verseKey: string) => {
@@ -273,7 +313,10 @@ export function MushafPager({
 
       setLoadingVerseKey(verseKey);
       try {
-        const urls = await getVerseAudioUrls(queue.map((v) => v.key));
+        const urls = await getVerseAudioUrls(
+          queue.map((v) => v.key),
+          reciterId,
+        );
         const keys: string[] = [];
         playlist.clear();
         queue.forEach((verse, i) => {
@@ -289,7 +332,7 @@ export function MushafPager({
         setLoadingVerseKey(null);
       }
     },
-    [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing],
+    [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing, reciterId],
   );
 
   return (

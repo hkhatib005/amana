@@ -15,6 +15,19 @@ export const quranClient = createServerClient({
 
 export const DEFAULT_RECITER_ID = 7; // Mishari Rashid al-`Afasy
 
+export type Reciter = { id: number; name: string };
+
+let recitersCache: Reciter[] | null = null;
+
+export async function getReciters(): Promise<Reciter[]> {
+  if (recitersCache) return recitersCache;
+  const reciters = await quranClient.resources.findAllRecitations();
+  recitersCache = reciters
+    .filter((r) => r.id != null && r.reciterName)
+    .map((r) => ({ id: r.id!, name: r.reciterName! }));
+  return recitersCache;
+}
+
 const audioUrlCache = new Map<string, string | null>();
 
 export async function getVerseAudioUrl(

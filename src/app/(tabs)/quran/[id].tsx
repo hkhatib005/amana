@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MushafPager, MushafPageInfo, useManuscriptColors } from '@/components/mushaf-pager';
@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getQuranChapters, QuranChapter } from '@/lib/quran-chapters';
+import { DEFAULT_RECITER_ID, getReciters, Reciter } from '@/lib/quran-foundation-client';
 import { recordRecentRead } from '@/lib/quran-recent';
 import { useTabBarVisibility } from '@/providers/tab-bar-visibility-provider';
 
@@ -21,11 +22,17 @@ export default function QuranReaderScreen() {
   const [showTranslation, setShowTranslation] = useState(false);
   const [chromeVisible, setChromeVisible] = useState(false);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [reciters, setReciters] = useState<Reciter[]>([]);
+  const [reciterId, setReciterId] = useState(DEFAULT_RECITER_ID);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
   const manuscript = useManuscriptColors();
 
   useEffect(() => {
     getQuranChapters().then(setChapters);
+  }, []);
+
+  useEffect(() => {
+    getReciters().then(setReciters);
   }, []);
 
   useEffect(() => {
@@ -115,6 +122,27 @@ export default function QuranReaderScreen() {
                 </ThemedView>
               </Pressable>
             </View>
+
+            {reciters.length > 0 && (
+              <>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
+                  Reciter
+                </ThemedText>
+                <ScrollView style={styles.reciterList} showsVerticalScrollIndicator={false}>
+                  {reciters.map((reciter) => (
+                    <Pressable key={reciter.id} onPress={() => setReciterId(reciter.id)}>
+                      <ThemedView
+                        type={reciter.id === reciterId ? 'backgroundSelected' : 'backgroundElement'}
+                        style={styles.reciterRow}>
+                        <ThemedText type={reciter.id === reciterId ? 'smallBold' : 'small'}>
+                          {reciter.name}
+                        </ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
           </ThemedView>
         )}
 
@@ -124,6 +152,7 @@ export default function QuranReaderScreen() {
               initialPageNumber={initialPageNumber}
               chapters={chapters}
               showTranslation={showTranslation}
+              reciterId={reciterId}
               onPageInfoChange={handlePageInfoChange}
             />
           </Pressable>
@@ -161,8 +190,23 @@ const styles = StyleSheet.create({
     top: 56,
     right: Spacing.four,
     zIndex: 10,
+    width: 220,
+    maxHeight: 340,
     borderRadius: Spacing.three,
     padding: Spacing.two,
+  },
+  reciterLabel: {
+    paddingHorizontal: Spacing.two,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.one,
+  },
+  reciterList: {
+    maxHeight: 220,
+  },
+  reciterRow: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
   },
   modeMenuTabs: {
     flexDirection: 'row',
