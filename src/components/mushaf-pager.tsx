@@ -101,6 +101,25 @@ function MushafPageContent({
     lineHeight: Math.round(baseTranslation.lineHeight * textSizeScale),
   };
 
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [scrollContentHeight, setScrollContentHeight] = useState(0);
+
+  // Follow the recitation down the page automatically whenever the page content overflows
+  // the visible area (always true in landscape; in portrait, only once a larger text size
+  // pushes a page past one screen). Estimated by the active verse's position among this
+  // page's verses, since precise per-verse layout measurement isn't reliable for the
+  // continuously-flowing Arabic text run.
+  useEffect(() => {
+    if (!activeVerseKey || !verses) return;
+    const maxScroll = Math.max(0, scrollContentHeight - scrollViewHeight);
+    if (maxScroll === 0) return;
+    const index = verses.findIndex((v) => v.key === activeVerseKey);
+    if (index === -1) return;
+    const fraction = verses.length > 1 ? index / (verses.length - 1) : 0;
+    scrollViewRef.current?.scrollTo({ y: fraction * maxScroll, animated: true });
+  }, [activeVerseKey, verses, scrollContentHeight, scrollViewHeight]);
+
   const segments = useMemo(() => {
     if (!verses) return [];
     const result: { showBanner: boolean; chapterId: number; verses: QuranPageVerse[] }[] = [];
@@ -126,9 +145,12 @@ function MushafPageContent({
 
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={styles.pageScroll}
       contentContainerStyle={styles.pageBodyContent}
-      showsVerticalScrollIndicator={false}>
+      showsVerticalScrollIndicator={false}
+      onLayout={(e) => setScrollViewHeight(e.nativeEvent.layout.height)}
+      onContentSizeChange={(_w, h) => setScrollContentHeight(h)}>
       {segments.map((segment, i) => (
         <View key={i}>
           {segment.showBanner && (
