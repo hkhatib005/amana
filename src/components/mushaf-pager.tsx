@@ -1,7 +1,7 @@
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 import { SurahBanner } from '@/components/surah-banner';
@@ -10,11 +10,13 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { toArabicIndicDigits } from '@/lib/arabic-numerals';
 import { QuranChapter } from '@/lib/quran-chapters';
 import { getPageVerses, QuranPageVerse, TOTAL_MUSHAF_PAGES } from '@/lib/quran-page-data';
-import { getVerseAudioUrl } from '@/lib/quran-foundation-client';
+import { getVerseAudioUrls } from '@/lib/quran-foundation-client';
 
 const QURAN_FONT_FAMILY = 'UthmanicHafs';
 
 const PRELOAD_RADIUS = 2;
+
+const MANUSCRIPT_ACCENT = '#C9A227';
 
 export const MANUSCRIPT_COLORS = {
   light: { background: '#FBF3E2', text: '#2A2018', textSecondary: '#8C7A5D' },
@@ -80,7 +82,10 @@ function MushafPageContent({
   }
 
   return (
-    <View style={styles.pageBodyContent}>
+    <ScrollView
+      style={styles.pageScroll}
+      contentContainerStyle={styles.pageBodyContent}
+      showsVerticalScrollIndicator={false}>
       {segments.map((segment, i) => (
         <View key={i}>
           {segment.showBanner && (
@@ -95,8 +100,7 @@ function MushafPageContent({
                   onPress={() => onVersePress(verse.key)}
                   style={[
                     styles.flowingText,
-                    { color: theme.text, fontFamily },
-                    verse.key === activeVerseKey && styles.verseActive,
+                    { color: verse.key === activeVerseKey ? MANUSCRIPT_ACCENT : theme.text, fontFamily },
                     verse.key === loadingVerseKey && styles.verseLoading,
                   ]}>
                   {verse.arabic}
@@ -117,7 +121,7 @@ function MushafPageContent({
                   key={verse.key}
                   onPress={() => onVersePress(verse.key)}
                   style={[
-                    verse.key === activeVerseKey && styles.verseActive,
+                    verse.key === activeVerseKey && { color: MANUSCRIPT_ACCENT },
                     verse.key === loadingVerseKey && styles.verseLoading,
                   ]}>
                   {verse.arabic}
@@ -135,7 +139,7 @@ function MushafPageContent({
       <Text style={[styles.pageNumber, { color: theme.textSecondary }]}>
         {toArabicIndicDigits(pageNumber)}
       </Text>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -153,38 +157,28 @@ export function MushafPager({
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
   const manuscript = useManuscriptColors();
 
-  const player = useAudioPlayer(null);
-  const playerStatus = useAudioPlayerStatus(player);
+  const playlist = useAudioPlaylist({ loop: 'none' });
+  const playlistStatus = useAudioPlaylistStatus(playlist);
+  const playlistVerseKeysRef = useRef<string[]>([]);
+  const playlistThroughPageRef = useRef<number>(0);
   const [activeVerseKey, setActiveVerseKey] = useState<string | null>(null);
   const [loadingVerseKey, setLoadingVerseKey] = useState<string | null>(null);
 
+  // Keep the highlighted verse in sync with the playlist's current track.
   useEffect(() => {
-    if (playerStatus.didJustFinish) setActiveVerseKey(null);
-  }, [playerStatus.didJustFinish]);
+    if (playlistStatus.trackCount === 0) return;
+    setActiveVerseKey(playlistVerseKeysRef.current[playlistStatus.currentIndex] ?? null);
+  }, [playlistStatus.currentIndex, playlistStatus.trackCount]);
 
-  const playVerse = useCallback(
-    async (verseKey: string) => {
-      if (verseKey === activeVerseKey) {
-        if (playerStatus.playing) {
-          player.pause();
-        } else {
-          player.play();
-        }
-        return;
-      }
-      setLoadingVerseKey(verseKey);
-      try {
-        const url = await getVerseAudioUrl(verseKey);
-        if (!url) return;
-        player.replace(url);
-        player.play();
-        setActiveVerseKey(verseKey);
-      } finally {
-        setLoadingVerseKey(null);
-      }
-    },
-    [activeVerseKey, playerStatus.playing, player],
-  );
+  // Clear the highlight once the last queued track finishes with nothing further to play.
+  useEffect(() => {
+    if (
+      playlistStatus.didJustFinish &&
+      playlistStatus.currentIndex >= playlistVerseKeysRef.current.length - 1
+    ) {
+      setActiveVerseKey(null);
+    }
+  }, [playlistStatus.didJustFinish, playlistStatus.currentIndex]);
 
   const loadPage = useCallback(
     (pageNumber: number) => {
@@ -212,6 +206,91 @@ export function MushafPager({
       onPageInfoChange({ pageNumber: current, juzNumber: verses[0].juzNumber, chapterId: verses[0].chapterId });
     }
   }, [pageIndex, pagesData, onPageInfoChange]);
+
+  // Follow the playlist's current track across page boundaries without interrupting audio.
+  useEffect(() => {
+    const key = playlistVerseKeysRef.current[playlistStatus.currentIndex];
+    if (!key) return;
+    for (const [pageNumberKey, verses] of Object.entries(pagesData)) {
+      if (verses.some((v) => v.key === key)) {
+        const pageNumber = Number(pageNumberKey);
+        if (pageNumber !== pageIndex + 1) {
+          pagerRef.current?.setPage(pageNumber - 1);
+        }
+        break;
+      }
+    }
+  }, [playlistStatus.currentIndex, pagesData, pageIndex]);
+
+  // Extend the playlist as further pages finish loading, so playback never runs dry.
+  useEffect(() => {
+    if (playlistVerseKeysRef.current.length === 0) return;
+    const nextPage = playlistThroughPageRef.current + 1;
+    const nextVerses = pagesData[nextPage];
+    if (!nextVerses) return;
+    playlistThroughPageRef.current = nextPage;
+    getVerseAudioUrls(nextVerses.map((v) => v.key)).then((urls) => {
+      nextVerses.forEach((verse, i) => {
+        const url = urls[i];
+        if (!url) return;
+        playlist.add({ uri: url });
+        playlistVerseKeysRef.current.push(verse.key);
+      });
+    });
+  }, [pagesData, playlist]);
+
+  const playVerse = useCallback(
+    async (verseKey: string) => {
+      if (verseKey === playlistVerseKeysRef.current[playlistStatus.currentIndex]) {
+        if (playlistStatus.playing) {
+          playlist.pause();
+        } else {
+          playlist.play();
+        }
+        return;
+      }
+
+      // Queue the tapped verse through the end of its page, then every already-loaded
+      // consecutive page after it, so playback can flow forward without interruption.
+      let startPage: number | null = null;
+      let startIndex = 0;
+      for (const [pageNumberKey, verses] of Object.entries(pagesData)) {
+        const idx = verses.findIndex((v) => v.key === verseKey);
+        if (idx !== -1) {
+          startPage = Number(pageNumberKey);
+          startIndex = idx;
+          break;
+        }
+      }
+      if (startPage === null) return;
+
+      const queue: QuranPageVerse[] = [...pagesData[startPage].slice(startIndex)];
+      let page = startPage + 1;
+      while (pagesData[page]) {
+        queue.push(...pagesData[page]);
+        page += 1;
+      }
+
+      setLoadingVerseKey(verseKey);
+      try {
+        const urls = await getVerseAudioUrls(queue.map((v) => v.key));
+        const keys: string[] = [];
+        playlist.clear();
+        queue.forEach((verse, i) => {
+          const url = urls[i];
+          if (!url) return;
+          playlist.add({ uri: url });
+          keys.push(verse.key);
+        });
+        playlistVerseKeysRef.current = keys;
+        playlistThroughPageRef.current = page - 1;
+        playlist.play();
+      } finally {
+        setLoadingVerseKey(null);
+      }
+    },
+    [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing],
+  );
 
   return (
     <PagerView
@@ -252,6 +331,9 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
+  pageScroll: {
+    flex: 1,
+  },
   pageBodyContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -265,8 +347,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flowingText: {
-    fontSize: 16,
-    lineHeight: 44,
+    fontSize: 17,
+    lineHeight: 48,
     textAlign: 'center',
     writingDirection: 'rtl',
   },
@@ -280,9 +362,6 @@ const styles = StyleSheet.create({
   },
   verseLoading: {
     opacity: 0.5,
-  },
-  verseActive: {
-    textDecorationLine: 'underline',
   },
   translationText: {
     fontSize: 15,
