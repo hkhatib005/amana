@@ -1,3 +1,4 @@
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -8,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { toArabicIndicDigits } from '@/lib/arabic-numerals';
 import { QuranChapter } from '@/lib/quran-chapters';
 import { getPageVerses, QuranPageVerse, TOTAL_MUSHAF_PAGES } from '@/lib/quran-page-data';
+import { getVerseAudioUrl } from '@/lib/quran-foundation-client';
 
 const QURAN_FONT_FAMILY = 'AmiriQuran';
 
@@ -27,11 +29,17 @@ function MushafPageContent({
   chapters,
   showTranslation,
   fontFamily,
+  activeVerseKey,
+  loadingVerseKey,
+  onVersePress,
 }: {
   verses: QuranPageVerse[] | undefined;
   chapters: QuranChapter[];
   showTranslation: boolean;
   fontFamily: string | undefined;
+  activeVerseKey: string | null;
+  loadingVerseKey: string | null;
+  onVersePress: (verseKey: string) => void;
 }) {
   const theme = useTheme();
 
@@ -70,7 +78,14 @@ function MushafPageContent({
           {showTranslation ? (
             segment.verses.map((verse) => (
               <View key={verse.key} style={styles.verseBlock}>
-                <Text style={[styles.flowingText, { color: theme.text, fontFamily }]}>
+                <Text
+                  onPress={() => onVersePress(verse.key)}
+                  style={[
+                    styles.flowingText,
+                    { color: theme.text, fontFamily },
+                    verse.key === activeVerseKey && styles.verseActive,
+                    verse.key === loadingVerseKey && styles.verseLoading,
+                  ]}>
                   {verse.arabic}
                   <Text style={{ color: theme.textSecondary }}>
                     {' '}
@@ -85,7 +100,13 @@ function MushafPageContent({
           ) : (
             <Text style={[styles.flowingText, { color: theme.text, fontFamily }]}>
               {segment.verses.map((verse) => (
-                <Text key={verse.key}>
+                <Text
+                  key={verse.key}
+                  onPress={() => onVersePress(verse.key)}
+                  style={[
+                    verse.key === activeVerseKey && styles.verseActive,
+                    verse.key === loadingVerseKey && styles.verseLoading,
+                  ]}>
                   {verse.arabic}
                   <Text style={{ color: theme.textSecondary }}>
                     {' '}
@@ -113,6 +134,39 @@ export function MushafPager({
   const loadingPages = useRef<Set<number>>(new Set());
   const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/AmiriQuran.ttf') });
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
+
+  const player = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(player);
+  const [activeVerseKey, setActiveVerseKey] = useState<string | null>(null);
+  const [loadingVerseKey, setLoadingVerseKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (playerStatus.didJustFinish) setActiveVerseKey(null);
+  }, [playerStatus.didJustFinish]);
+
+  const playVerse = useCallback(
+    async (verseKey: string) => {
+      if (verseKey === activeVerseKey) {
+        if (playerStatus.playing) {
+          player.pause();
+        } else {
+          player.play();
+        }
+        return;
+      }
+      setLoadingVerseKey(verseKey);
+      try {
+        const url = await getVerseAudioUrl(verseKey);
+        if (!url) return;
+        player.replace(url);
+        player.play();
+        setActiveVerseKey(verseKey);
+      } finally {
+        setLoadingVerseKey(null);
+      }
+    },
+    [activeVerseKey, playerStatus.playing, player],
+  );
 
   const loadPage = useCallback(
     (pageNumber: number) => {
@@ -160,6 +214,9 @@ export function MushafPager({
                 chapters={chapters}
                 showTranslation={showTranslation}
                 fontFamily={fontFamily}
+                activeVerseKey={activeVerseKey}
+                loadingVerseKey={loadingVerseKey}
+                onVersePress={playVerse}
               />
             )}
           </View>
@@ -188,13 +245,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flowingText: {
-    fontSize: 24,
-    lineHeight: 52,
+    fontSize: 18,
+    lineHeight: 50,
     textAlign: 'center',
     writingDirection: 'rtl',
   },
   verseBlock: {
     marginBottom: 20,
+  },
+  verseLoading: {
+    opacity: 0.5,
+  },
+  verseActive: {
+    textDecorationLine: 'underline',
   },
   translationText: {
     fontSize: 15,
