@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 import { SurahBanner } from '@/components/surah-banner';
+import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { toArabicIndicDigits } from '@/lib/arabic-numerals';
 import { QuranChapter } from '@/lib/quran-chapters';
@@ -237,7 +238,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 24,
+    paddingTop: 24,
+    paddingBottom: BottomTabInset + Spacing.five,
   },
   loadingWrap: {
     flex: 1,

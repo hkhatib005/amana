@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CACHE_KEY = 'quranChaptersCache';
+const CACHE_KEY = 'quranChaptersCache:v2';
 
 export type QuranChapter = {
   id: number;
