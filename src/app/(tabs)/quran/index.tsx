@@ -58,6 +58,10 @@ export default function QuranIndexScreen() {
     router.push({ pathname: '/quran/[id]', params: { id: chapter.startPage } });
   }
 
+  function openRecent(read: RecentRead) {
+    router.push({ pathname: '/quran/[id]', params: { id: read.pageNumber } });
+  }
+
   function openJuz(juz: number) {
     router.push({ pathname: '/quran/[id]', params: { id: startingPageForJuz(juz) } });
   }
@@ -123,19 +127,19 @@ export default function QuranIndexScreen() {
                   </ThemedText>
                   <ThemedView type="backgroundElement" style={styles.recentCard}>
                     {recent.map((r, index) => (
-                      <View
-                        key={r.chapterId}
-                        style={[styles.recentRow, index > 0 && styles.recentRowDivider]}>
-                        <View style={styles.recentRowText}>
-                          <ThemedText type="smallBold">{r.chapterName}</ThemedText>
+                      <Pressable key={r.chapterId} onPress={() => openRecent(r)}>
+                        <View style={[styles.recentRow, index > 0 && styles.recentRowDivider]}>
+                          <View style={styles.recentRowText}>
+                            <ThemedText type="smallBold">{r.chapterName}</ThemedText>
+                            <ThemedText type="small" themeColor="textSecondary">
+                              {formatRelativeTime(r.viewedAt)}
+                            </ThemedText>
+                          </View>
                           <ThemedText type="small" themeColor="textSecondary">
-                            {formatRelativeTime(r.viewedAt)}
+                            {r.pageNumber}
                           </ThemedText>
                         </View>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {r.pageNumber}
-                        </ThemedText>
-                      </View>
+                      </Pressable>
                     ))}
                   </ThemedView>
                 </View>
