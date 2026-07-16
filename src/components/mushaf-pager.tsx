@@ -12,7 +12,7 @@ import { QuranChapter } from '@/lib/quran-chapters';
 import { getPageVerses, QuranPageVerse, TOTAL_MUSHAF_PAGES } from '@/lib/quran-page-data';
 import { getVerseAudioUrl } from '@/lib/quran-foundation-client';
 
-const QURAN_FONT_FAMILY = 'AmiriQuran';
+const QURAN_FONT_FAMILY = 'UthmanicHafs';
 
 const PRELOAD_RADIUS = 2;
 
@@ -26,6 +26,7 @@ type MushafPagerProps = {
 };
 
 function MushafPageContent({
+  pageNumber,
   verses,
   chapters,
   showTranslation,
@@ -34,6 +35,7 @@ function MushafPageContent({
   loadingVerseKey,
   onVersePress,
 }: {
+  pageNumber: number;
   verses: QuranPageVerse[] | undefined;
   chapters: QuranChapter[];
   showTranslation: boolean;
@@ -119,6 +121,10 @@ function MushafPageContent({
           )}
         </View>
       ))}
+
+      <Text style={[styles.pageNumber, { color: theme.textSecondary }]}>
+        {toArabicIndicDigits(pageNumber)}
+      </Text>
     </View>
   );
 }
@@ -133,7 +139,7 @@ export function MushafPager({
   const [pageIndex, setPageIndex] = useState(initialPageNumber - 1);
   const [pagesData, setPagesData] = useState<Record<number, QuranPageVerse[]>>({});
   const loadingPages = useRef<Set<number>>(new Set());
-  const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/AmiriQuran.ttf') });
+  const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/UthmanicHafs.ttf') });
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
 
   const player = useAudioPlayer(null);
@@ -211,6 +217,7 @@ export function MushafPager({
           <View key={pageNumber} style={styles.page}>
             {withinWindow && (
               <MushafPageContent
+                pageNumber={pageNumber}
                 verses={pagesData[pageNumber]}
                 chapters={chapters}
                 showTranslation={showTranslation}
@@ -247,10 +254,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   flowingText: {
-    fontSize: 18,
-    lineHeight: 50,
+    fontSize: 16,
+    lineHeight: 44,
     textAlign: 'center',
     writingDirection: 'rtl',
+  },
+  pageNumber: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 16,
   },
   verseBlock: {
     marginBottom: 20,

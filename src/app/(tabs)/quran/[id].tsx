@@ -120,13 +120,6 @@ export default function QuranReaderScreen() {
           </Pressable>
         )}
 
-        {!chromeVisible && pageInfo && (
-          <ThemedView type="backgroundElement" style={styles.pageFooter} pointerEvents="none">
-            <ThemedText type="small" themeColor="textSecondary">
-              {pageInfo.pageNumber}
-            </ThemedText>
-          </ThemedView>
-        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -174,13 +167,5 @@ const styles = StyleSheet.create({
   },
   pagerWrap: {
     flex: 1,
-  },
-  pageFooter: {
-    position: 'absolute',
-    bottom: Spacing.five,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.five,
   },
 });

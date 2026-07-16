@@ -1,0 +1,14 @@
+KFGQPC HAFS Uthmanic Script (v14, full)
+
+Property of King Fahd Glorious Quran Printing Complex (KFGQPC).
+Proprietary license: "may not be reproduced, modified without the
+express written approval of King Fahd Glorious Quran Printing Complex."
+
+This is the same font used by quran.com and the vast majority of
+Quran reading apps for continuous Uthmani-script text. It is not
+under an open license like Amiri Quran (see AmiriQuran-OFL-LICENSE.txt),
+but is used here per an explicit decision by the app owner, made aware
+of this licensing status.
+
+Source: https://github.com/fawazahmed0/quran-api (font redistributed
+there; original copyright remains with KFGQPC).
