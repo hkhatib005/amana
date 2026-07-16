@@ -1,11 +1,11 @@
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { QiblaCompass } from '@/components/qibla-compass';
 import { ThemedText } from '@/components/themed-text';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { UtilityColors } from '@/constants/utility-theme';
 import { computeDistanceToKaabaKm, computeQiblaBearing } from '@/lib/qibla';
 import { usePrayerTimes } from '@/providers/prayer-times-provider';
@@ -42,66 +42,72 @@ export default function QiblaScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: UtilityColors.background }]}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedText style={styles.title}>Qibla</ThemedText>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          <ThemedText style={styles.title}>Qibla</ThemedText>
 
-        {loading && <Text style={styles.stateMessage}>Finding your location…</Text>}
+          {loading && <Text style={styles.stateMessage}>Finding your location…</Text>}
 
-        {!loading && permissionDenied && (
-          <View style={styles.messageCard}>
-            <Text style={styles.messageText}>
-              Location access is needed to find the Qibla direction from where you are.
-            </Text>
-            <Pressable onPress={() => Linking.openSettings()}>
-              <Text style={styles.messageLink}>Open Settings</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {!loading && !permissionDenied && qiblaBearing != null && (
-          <>
-            <View style={styles.compassWrap}>
-              <QiblaCompass size={COMPASS_SIZE} qiblaBearing={qiblaBearing} heading={heading} />
+          {!loading && permissionDenied && (
+            <View style={styles.messageCard}>
+              <Text style={styles.messageText}>
+                Location access is needed to find the Qibla direction from where you are.
+              </Text>
+              <Pressable onPress={() => Linking.openSettings()}>
+                <Text style={styles.messageLink}>Open Settings</Text>
+              </Pressable>
             </View>
+          )}
 
-            <View style={styles.statsRow}>
-              <View style={styles.statChip}>
-                <Text style={styles.statValue}>{Math.round(qiblaBearing)}°</Text>
-                <Text style={styles.statLabel}>from North</Text>
+          {!loading && !permissionDenied && qiblaBearing != null && (
+            <>
+              <View style={styles.compassWrap}>
+                <QiblaCompass size={COMPASS_SIZE} qiblaBearing={qiblaBearing} heading={heading} />
               </View>
-              {distanceKm != null && (
+
+              <View style={styles.statsRow}>
                 <View style={styles.statChip}>
-                  <Text style={styles.statValue}>{Math.round(distanceKm).toLocaleString()} km</Text>
-                  <Text style={styles.statLabel}>to the Kaaba</Text>
+                  <Text style={styles.statValue}>{Math.round(qiblaBearing)}°</Text>
+                  <Text style={styles.statLabel}>from North</Text>
+                </View>
+                {distanceKm != null && (
+                  <View style={styles.statChip}>
+                    <Text style={styles.statValue}>
+                      {Math.round(distanceKm).toLocaleString()} km
+                    </Text>
+                    <Text style={styles.statLabel}>to the Kaaba</Text>
+                  </View>
+                )}
+              </View>
+
+              <Text style={styles.instructions}>
+                Hold your phone flat and turn until the 🕋 needle points straight up, toward the
+                badge at the top of the dial.
+              </Text>
+
+              {heading == null && (
+                <View style={styles.messageCard}>
+                  <Text style={styles.messageTextMuted}>
+                    Compass heading isn&apos;t available on the Simulator, so the needle is shown
+                    relative to North. This will track your device&apos;s heading live on your
+                    iPhone.
+                  </Text>
                 </View>
               )}
+            </>
+          )}
+
+          {!loading && !permissionDenied && qiblaBearing == null && (
+            <View style={styles.messageCard}>
+              <Text style={styles.messageText}>Couldn&apos;t determine your location.</Text>
+              <Pressable onPress={retry}>
+                <Text style={styles.messageLink}>Try Again</Text>
+              </Pressable>
             </View>
-
-            <Text style={styles.instructions}>
-              Hold your phone flat and turn until the 🕋 needle points straight up, toward the
-              badge at the top of the dial.
-            </Text>
-
-            {heading == null && (
-              <View style={styles.messageCard}>
-                <Text style={styles.messageTextMuted}>
-                  Compass heading isn&apos;t available on the Simulator, so the needle is shown
-                  relative to North. This will track your device&apos;s heading live on your
-                  iPhone.
-                </Text>
-              </View>
-            )}
-          </>
-        )}
-
-        {!loading && !permissionDenied && qiblaBearing == null && (
-          <View style={styles.messageCard}>
-            <Text style={styles.messageText}>Couldn&apos;t determine your location.</Text>
-            <Pressable onPress={retry}>
-              <Text style={styles.messageLink}>Try Again</Text>
-            </Pressable>
-          </View>
-        )}
+          )}
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -113,11 +119,14 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  scrollContent: {
     alignSelf: 'center',
     alignItems: 'center',
     width: '100%',
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.four,
   },
   title: {
