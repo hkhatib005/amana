@@ -1,9 +1,15 @@
 import * as Notifications from 'expo-notifications';
 
+import prayerVirtues from '@/constants/prayer-virtues.json';
 import { PrayerCalculationMethodKey } from '@/constants/prayer-methods';
 import { computePrayerTimes, computeTahajjudTime } from '@/lib/prayer-times';
 
+const APP_TITLE = 'Amana - Muslim App';
 const GREETING = 'Salam Fellow Muslim';
+
+function body(message: string) {
+  return `${GREETING}, ${message}`;
+}
 
 /** Stay safely under iOS's ~64 pending local notification cap while still covering several days. */
 const MAX_PENDING_PRAYER_NOTIFICATIONS = 56;
@@ -41,7 +47,44 @@ const NEXT_WINDOW: Record<CorePrayer, 'sunrise' | CorePrayer> = {
   isha: 'fajr', // next day's fajr
 };
 
-type NotificationKind = 'prayer-at-time' | 'prayer-5min' | 'prayer-missed' | 'sunrise' | 'tahajjud';
+type VirtueFact = { text: string; source: string };
+const PRAYER_VIRTUES = prayerVirtues as unknown as Record<CorePrayer, VirtueFact[]>;
+
+function dayOfYear(date: Date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  return Math.floor((date.getTime() - start.getTime()) / 86400000);
+}
+
+/** YYYY-MM-DD in local time, used to build stable per-day notification identifiers. */
+function dateStamp(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Deterministic per-day rotation so re-scheduling the same date never changes which fact was picked. */
+function virtueForPrayer(prayer: CorePrayer, date: Date): VirtueFact {
+  const facts = PRAYER_VIRTUES[prayer];
+  return facts[dayOfYear(date) % facts.length];
+}
+
+/** Friday, using JS's Date#getDay() (Sunday = 0 ... Saturday = 6). */
+function isFriday(date: Date) {
+  return date.getDay() === 5;
+}
+
+/** iOS CalendarTrigger weekday numbering: Sunday = 1 ... Saturday = 7. */
+const IOS_FRIDAY_WEEKDAY = 6;
+
+type NotificationKind =
+  | 'prayer-at-time'
+  | 'prayer-15min'
+  | 'prayer-missed'
+  | 'sunrise'
+  | 'tahajjud'
+  | 'dhuhr-asr-dua'
+  | 'friday-dua';
 
 export function configureNotificationHandler() {
   Notifications.setNotificationHandler({
@@ -78,19 +121,38 @@ async function cancelPrayerNotifications(kinds: NotificationKind[], prayer?: Cor
   });
 }
 
-async function scheduleAt(date: Date, title: string, body: string, data: Record<string, string>) {
+/**
+ * `identifier` is deterministic (kind + prayer + date) so re-running this for the same slot
+ * *replaces* the pending request in place (standard UNUserNotificationCenter behavior) instead of
+ * racing with `cancelWhere` to avoid a duplicate — this is what actually prevents double-fires.
+ */
+async function scheduleAt(
+  date: Date,
+  title: string,
+  message: string,
+  data: Record<string, string>,
+  identifier: string,
+) {
   if (date.getTime() <= Date.now()) return;
   await Notifications.scheduleNotificationAsync({
-    content: { title, body, data },
+    identifier,
+    content: { title, body: message, data },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date },
   });
 }
 
-function slotsPerDay(enabled: Record<ReminderPrayer, boolean>): number {
+export type ExtraDailyToggles = {
+  dhuhrAsrDuaEnabled: boolean;
+  fridayDuaEnabled: boolean;
+};
+
+function slotsPerDay(enabled: Record<ReminderPrayer, boolean>, extra: ExtraDailyToggles): number {
   let count = 0;
-  for (const prayer of CORE_PRAYERS) if (enabled[prayer]) count += 3; // at-time + 5min + missed
+  for (const prayer of CORE_PRAYERS) if (enabled[prayer]) count += 3; // at-time + 15min + missed
   if (enabled.sunrise) count += 1;
   if (enabled.tahajjud) count += 1;
+  if (extra.dhuhrAsrDuaEnabled) count += 1;
+  if (extra.fridayDuaEnabled) count += 1; // only actually fires 1 day in 7; counted every day as a safe upper bound
   return count;
 }
 
@@ -103,10 +165,19 @@ export async function scheduleUpcomingPrayerNotifications(
   coords: { latitude: number; longitude: number },
   method: PrayerCalculationMethodKey,
   enabled: Record<ReminderPrayer, boolean>,
+  extra: ExtraDailyToggles,
 ) {
-  await cancelPrayerNotifications(['prayer-at-time', 'prayer-5min', 'prayer-missed', 'sunrise', 'tahajjud']);
+  await cancelPrayerNotifications([
+    'prayer-at-time',
+    'prayer-15min',
+    'prayer-missed',
+    'sunrise',
+    'tahajjud',
+    'dhuhr-asr-dua',
+    'friday-dua',
+  ]);
 
-  const perDay = slotsPerDay(enabled);
+  const perDay = slotsPerDay(enabled, extra);
   if (perDay === 0) return;
   const daysAhead = Math.max(
     MIN_DAYS_AHEAD,
@@ -122,42 +193,84 @@ export async function scheduleUpcomingPrayerNotifications(
     const times = computePrayerTimes(coords.latitude, coords.longitude, method, date);
     const nextFajr = computePrayerTimes(coords.latitude, coords.longitude, method, nextDate).fajr;
 
+    const stamp = dateStamp(date);
+
     for (const prayer of CORE_PRAYERS) {
       if (!enabled[prayer]) continue;
       const label = PRAYER_LABEL[prayer];
       const time = times[prayer];
+      const fact = virtueForPrayer(prayer, date);
 
-      await scheduleAt(time, `${GREETING}, it's ${label} time`, '', { kind: 'prayer-at-time', prayer });
+      await scheduleAt(
+        time,
+        APP_TITLE,
+        body(`it's time to pray ${label}. ${fact.text} — ${fact.source}`),
+        { kind: 'prayer-at-time', prayer },
+        `prayer-at-time-${prayer}-${stamp}`,
+      );
 
-      await scheduleAt(new Date(time.getTime() - 5 * 60000), `${GREETING}, 5 mins till ${label}`, '', {
-        kind: 'prayer-5min',
-        prayer,
-      });
+      await scheduleAt(
+        new Date(time.getTime() - 15 * 60000),
+        APP_TITLE,
+        body(`${label} is in 15 minutes.`),
+        { kind: 'prayer-15min', prayer },
+        `prayer-15min-${prayer}-${stamp}`,
+      );
 
       const windowEndKey = NEXT_WINDOW[prayer];
       const windowEnd = windowEndKey === 'fajr' ? nextFajr : times[windowEndKey];
       await scheduleAt(
         new Date(windowEnd.getTime() - 10 * 60000),
-        `${GREETING}, we saw you didn't pray ${label}`,
-        "There's 10 mins left, go pray.",
+        APP_TITLE,
+        body(`we saw you didn't pray ${label} — there's 10 minutes left, go pray.`),
         { kind: 'prayer-missed', prayer },
+        `prayer-missed-${prayer}-${stamp}`,
       );
     }
 
     if (enabled.sunrise) {
-      await scheduleAt(times.sunrise, `${GREETING}, it's Sunrise as well`, '', {
-        kind: 'sunrise',
-        prayer: 'sunrise',
-      });
+      await scheduleAt(
+        times.sunrise,
+        APP_TITLE,
+        body("it's Sunrise as well."),
+        { kind: 'sunrise', prayer: 'sunrise' },
+        `sunrise-${stamp}`,
+      );
     }
 
     if (enabled.tahajjud) {
       const tahajjudTime = computeTahajjudTime(times.maghrib, nextFajr);
       await scheduleAt(
         tahajjudTime,
-        `${GREETING}, it's Tahajjud time`,
-        "Dua in Tahajjud is like an arrow that doesn't miss its target.",
+        APP_TITLE,
+        body(
+          'Tahajjud dua is like an arrow that does not miss its target — rise and make dua.',
+        ),
         { kind: 'tahajjud', prayer: 'tahajjud' },
+        `tahajjud-${stamp}`,
+      );
+    }
+
+    if (extra.dhuhrAsrDuaEnabled) {
+      const midpoint = new Date(times.dhuhr.getTime() + (times.asr.getTime() - times.dhuhr.getTime()) / 2);
+      await scheduleAt(
+        midpoint,
+        APP_TITLE,
+        body('the time between Dhuhr and Asr is blessed — make dua.'),
+        { kind: 'dhuhr-asr-dua' },
+        `dhuhr-asr-dua-${stamp}`,
+      );
+    }
+
+    if (extra.fridayDuaEnabled && isFriday(date)) {
+      await scheduleAt(
+        new Date(times.maghrib.getTime() - 60 * 60000),
+        APP_TITLE,
+        body(
+          'this is said to be one of the hours of acceptance on Friday — make dua.',
+        ),
+        { kind: 'friday-dua' },
+        `friday-dua-${stamp}`,
       );
     }
   }
@@ -169,12 +282,11 @@ export async function cancelMissedPrayerNotification(prayer: CorePrayer) {
 }
 
 export async function scheduleQuranReminder(hour: number, minute: number) {
-  await cancelWhere((data) => data?.type === 'quran-reminder');
-
   await Notifications.scheduleNotificationAsync({
+    identifier: 'quran-reminder',
     content: {
-      title: `${GREETING}, come and read 1 page of Qur'an`,
-      body: 'Did you know? Each letter you read is equal to 10 good deeds.',
+      title: APP_TITLE,
+      body: body("read some Qur'an today — each letter is 10 good deeds."),
       data: { type: 'quran-reminder' },
     },
     trigger: {
@@ -187,7 +299,66 @@ export async function scheduleQuranReminder(hour: number, minute: number) {
 }
 
 export async function cancelQuranReminder() {
-  await cancelWhere((data) => data?.type === 'quran-reminder');
+  await Notifications.cancelScheduledNotificationAsync('quran-reminder');
+}
+
+const JUMUAH_MORNING_HOUR = 7;
+
+export async function scheduleJumuahMorningReminder() {
+  await Notifications.scheduleNotificationAsync({
+    identifier: 'jumuah-morning',
+    content: {
+      title: APP_TITLE,
+      body: body(
+        "it's Jumu'ah — make ghusl, wear your best clothes, head early to the masjid, and read Surah Al-Kahf.",
+      ),
+      data: { type: 'jumuah-morning' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+      weekday: IOS_FRIDAY_WEEKDAY,
+      hour: JUMUAH_MORNING_HOUR,
+      minute: 0,
+      repeats: true,
+    },
+  });
+}
+
+export async function cancelJumuahMorningReminder() {
+  await Notifications.cancelScheduledNotificationAsync('jumuah-morning');
+}
+
+/** Fixed daytime/evening hours rather than a literal "every 3 hours" (which would include the middle of the night). */
+const FRIDAY_BLESSING_HOURS = [9, 12, 15, 18, 21];
+
+export async function scheduleFridayBlessingsReminders() {
+  await Promise.all(
+    FRIDAY_BLESSING_HOURS.map((hour) =>
+      Notifications.scheduleNotificationAsync({
+        identifier: `friday-blessings-${hour}`,
+        content: {
+          title: APP_TITLE,
+          body: body('send blessings upon the Prophet ﷺ.'),
+          data: { type: 'friday-blessings', hour: String(hour) },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+          weekday: IOS_FRIDAY_WEEKDAY,
+          hour,
+          minute: 0,
+          repeats: true,
+        },
+      }),
+    ),
+  );
+}
+
+export async function cancelFridayBlessingsReminders() {
+  await Promise.all(
+    FRIDAY_BLESSING_HOURS.map((hour) =>
+      Notifications.cancelScheduledNotificationAsync(`friday-blessings-${hour}`),
+    ),
+  );
 }
 
 /**
@@ -196,12 +367,11 @@ export async function cancelQuranReminder() {
  * further out and never fires; if they stop, the last-scheduled one delivers on its own.
  */
 export async function scheduleWeMissYouReminder(daysAhead: number) {
-  await cancelWhere((data) => data?.type === 'we-miss-you');
-
   await Notifications.scheduleNotificationAsync({
+    identifier: 'we-miss-you',
     content: {
-      title: `${GREETING}, we miss you`,
-      body: 'Come back for prayer times, adhkar, and a page of Qur’an.',
+      title: APP_TITLE,
+      body: body('we miss you — come back and track your prayers.'),
       data: { type: 'we-miss-you' },
     },
     trigger: {

@@ -16,8 +16,20 @@ const QURAN_REMINDER_PRESETS = [
 
 export default function SettingsScreen() {
   const { method, setMethod } = usePrayerTimes();
-  const { quranReminderEnabled, setQuranReminderEnabled, quranReminderTime, setQuranReminderTime } =
-    useNotificationPreferences();
+  const {
+    quranReminderEnabled,
+    setQuranReminderEnabled,
+    quranReminderTime,
+    setQuranReminderTime,
+    dhuhrAsrDuaEnabled,
+    setDhuhrAsrDuaEnabled,
+    jumuahMorningEnabled,
+    setJumuahMorningEnabled,
+    fridayBlessingsEnabled,
+    setFridayBlessingsEnabled,
+    fridayDuaEnabled,
+    setFridayDuaEnabled,
+  } = useNotificationPreferences();
 
   return (
     <ThemedView style={styles.container}>
@@ -33,7 +45,7 @@ export default function SettingsScreen() {
 
         <ThemedView type="backgroundElement" style={styles.optionList}>
           <View style={styles.switchRow}>
-            <ThemedText>Daily Qur&apos;an reminder</ThemedText>
+            <ThemedText style={styles.switchLabel}>Daily Qur&apos;an reminder</ThemedText>
             <Switch value={quranReminderEnabled} onValueChange={setQuranReminderEnabled} />
           </View>
 
@@ -56,6 +68,28 @@ export default function SettingsScreen() {
               })}
             </View>
           )}
+
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Dua between Dhuhr and Asr</ThemedText>
+            <Switch value={dhuhrAsrDuaEnabled} onValueChange={setDhuhrAsrDuaEnabled} />
+          </View>
+        </ThemedView>
+
+        <ThemedText type="smallBold">Friday (Jumu&apos;ah)</ThemedText>
+
+        <ThemedView type="backgroundElement" style={styles.optionList}>
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Friday sunnahs reminder</ThemedText>
+            <Switch value={jumuahMorningEnabled} onValueChange={setJumuahMorningEnabled} />
+          </View>
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Send blessings reminders</ThemedText>
+            <Switch value={fridayBlessingsEnabled} onValueChange={setFridayBlessingsEnabled} />
+          </View>
+          <View style={styles.switchRow}>
+            <ThemedText style={styles.switchLabel}>Hour-of-acceptance dua</ThemedText>
+            <Switch value={fridayDuaEnabled} onValueChange={setFridayDuaEnabled} />
+          </View>
         </ThemedView>
 
         <ThemedText type="smallBold">Prayer calculation method</ThemedText>
@@ -110,8 +144,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+  },
+  switchLabel: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   presetRow: {
     flexDirection: 'row',

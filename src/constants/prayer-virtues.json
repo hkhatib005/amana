@@ -1,0 +1,58 @@
+{
+  "_readme": "Rotating fada'il (virtue) facts appended to the 'time to pray' notification for each of the 5 daily prayers. 'confirmed': true means the user has approved the wording; the 'source' field is still a placeholder needing an exact citation (book + hadith number) until 'TODO: verify' is removed from it.",
+  "fajr": [
+    {
+      "text": "The two rak'ahs before Fajr are better than this world and everything in it.",
+      "source": "Sahih Muslim — TODO: verify",
+      "confirmed": true
+    },
+    {
+      "text": "Whoever prays Fajr in congregation is under Allah's protection for that day.",
+      "source": "Sahih Muslim — TODO: verify",
+      "confirmed": true
+    }
+  ],
+  "dhuhr": [
+    {
+      "text": "Whoever prays four rak'ahs before Dhuhr and four after it, Allah forbids him from the Fire.",
+      "source": "Sunan al-Tirmidhi — TODO: verify",
+      "confirmed": true
+    }
+  ],
+  "asr": [
+    {
+      "text": "Whoever misses the Asr prayer, it is as if he lost his family and his wealth.",
+      "source": "Sahih al-Bukhari — TODO: verify",
+      "confirmed": true
+    },
+    {
+      "text": "Whoever prays the two 'cool' prayers, Fajr and Asr, will enter Paradise.",
+      "source": "Bukhari & Muslim — TODO: verify",
+      "confirmed": true
+    }
+  ],
+  "maghrib": [
+    {
+      "text": "The time between the adhan and the iqamah is a time when dua is not turned away, so ask Allah generously as you wait for Maghrib.",
+      "source": "Abu Dawud / al-Tirmidhi — TODO: verify",
+      "confirmed": true
+    },
+    {
+      "text": "Hastening to pray Maghrib as soon as its time enters was the regular practice of the Prophet ﷺ and his companions.",
+      "source": "Bukhari & Muslim — TODO: verify",
+      "confirmed": true
+    }
+  ],
+  "isha": [
+    {
+      "text": "Whoever prays Isha in congregation, it is as if he had prayed half the night.",
+      "source": "Sahih Muslim — TODO: verify",
+      "confirmed": true
+    },
+    {
+      "text": "Isha and Fajr are the two prayers heaviest on the hypocrites, yet if people knew their true reward, they would come to them even crawling.",
+      "source": "Bukhari & Muslim — TODO: verify",
+      "confirmed": true
+    }
+  ]
+}

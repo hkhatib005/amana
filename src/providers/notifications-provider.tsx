@@ -3,10 +3,15 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { AppState } from 'react-native';
 
 import {
+  cancelFridayBlessingsReminders,
+  cancelJumuahMorningReminder,
   cancelQuranReminder,
+  CORE_PRAYERS,
   requestNotificationPermissionAsync,
   REMINDER_PRAYERS,
   ReminderPrayer,
+  scheduleFridayBlessingsReminders,
+  scheduleJumuahMorningReminder,
   scheduleQuranReminder,
   scheduleUpcomingPrayerNotifications,
   scheduleWeMissYouReminder,
@@ -27,18 +32,44 @@ type Preferences = {
   prayerNotifications: PrayerNotificationMap;
   quranReminderEnabled: boolean;
   quranReminderTime: { hour: number; minute: number };
+  dhuhrAsrDuaEnabled: boolean;
+  jumuahMorningEnabled: boolean;
+  fridayBlessingsEnabled: boolean;
+  fridayDuaEnabled: boolean;
 };
 
 const DEFAULT_PREFERENCES: Preferences = {
   prayerNotifications: DEFAULT_PRAYER_NOTIFICATIONS,
   quranReminderEnabled: false,
   quranReminderTime: DEFAULT_QURAN_REMINDER_TIME,
+  dhuhrAsrDuaEnabled: false,
+  jumuahMorningEnabled: false,
+  fridayBlessingsEnabled: false,
+  fridayDuaEnabled: false,
+};
+
+export type OnboardingSelections = {
+  /** Bundles all 5 core prayers (fajr/dhuhr/asr/maghrib/isha). */
+  prayerReminders: boolean;
+  tahajjud: boolean;
+  quranReminder: boolean;
+  dhuhrAsrDua: boolean;
+  /** Bundles Jumu'ah morning + send-blessings + hour-of-acceptance dua. */
+  fridayReminders: boolean;
 };
 
 type NotificationsContextValue = Preferences & {
   setPrayerNotificationEnabled: (prayer: ReminderPrayer, enabled: boolean) => void;
   setQuranReminderEnabled: (enabled: boolean) => void;
   setQuranReminderTime: (time: { hour: number; minute: number }) => void;
+  setDhuhrAsrDuaEnabled: (enabled: boolean) => void;
+  setJumuahMorningEnabled: (enabled: boolean) => void;
+  setFridayBlessingsEnabled: (enabled: boolean) => void;
+  setFridayDuaEnabled: (enabled: boolean) => void;
+  /** Applies a first-run onboarding selection as a single persisted update. Returns whether
+   * notification permission was actually granted (false if the user picked anything but the OS
+   * denied permission — everything is silently kept off in that case). */
+  completeOnboarding: (selections: OnboardingSelections) => Promise<boolean>;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
@@ -78,9 +109,19 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // stays fresh even after the app hasn't been opened for a day or more.
   useEffect(() => {
     if (!loaded || !coords || !method) return;
-    scheduleUpcomingPrayerNotifications(coords, method, preferences.prayerNotifications);
+    scheduleUpcomingPrayerNotifications(coords, method, preferences.prayerNotifications, {
+      dhuhrAsrDuaEnabled: preferences.dhuhrAsrDuaEnabled,
+      fridayDuaEnabled: preferences.fridayDuaEnabled,
+    });
     scheduleWeMissYouReminder(WE_MISS_YOU_DAYS_AHEAD);
-  }, [loaded, coords, method, preferences.prayerNotifications]);
+  }, [
+    loaded,
+    coords,
+    method,
+    preferences.prayerNotifications,
+    preferences.dhuhrAsrDuaEnabled,
+    preferences.fridayDuaEnabled,
+  ]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
@@ -92,6 +133,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         currentCoords,
         currentMethod,
         preferencesRef.current.prayerNotifications,
+        {
+          dhuhrAsrDuaEnabled: preferencesRef.current.dhuhrAsrDuaEnabled,
+          fridayDuaEnabled: preferencesRef.current.fridayDuaEnabled,
+        },
       );
       scheduleWeMissYouReminder(WE_MISS_YOU_DAYS_AHEAD);
     });
@@ -106,6 +151,24 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       cancelQuranReminder();
     }
   }, [loaded, preferences.quranReminderEnabled, preferences.quranReminderTime]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (preferences.jumuahMorningEnabled) {
+      scheduleJumuahMorningReminder();
+    } else {
+      cancelJumuahMorningReminder();
+    }
+  }, [loaded, preferences.jumuahMorningEnabled]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (preferences.fridayBlessingsEnabled) {
+      scheduleFridayBlessingsReminders();
+    } else {
+      cancelFridayBlessingsReminders();
+    }
+  }, [loaded, preferences.fridayBlessingsEnabled]);
 
   const setPrayerNotificationEnabled = useCallback(
     async (prayer: ReminderPrayer, enabled: boolean) => {
@@ -133,6 +196,76 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     [persist, preferences],
   );
 
+  const setDhuhrAsrDuaEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (enabled && !(await requestNotificationPermissionAsync())) return;
+      persist({ ...preferences, dhuhrAsrDuaEnabled: enabled });
+    },
+    [persist, preferences],
+  );
+
+  const setJumuahMorningEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (enabled && !(await requestNotificationPermissionAsync())) return;
+      persist({ ...preferences, jumuahMorningEnabled: enabled });
+    },
+    [persist, preferences],
+  );
+
+  const setFridayBlessingsEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (enabled && !(await requestNotificationPermissionAsync())) return;
+      persist({ ...preferences, fridayBlessingsEnabled: enabled });
+    },
+    [persist, preferences],
+  );
+
+  const setFridayDuaEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (enabled && !(await requestNotificationPermissionAsync())) return;
+      persist({ ...preferences, fridayDuaEnabled: enabled });
+    },
+    [persist, preferences],
+  );
+
+  const completeOnboarding = useCallback(
+    async (selections: OnboardingSelections) => {
+      const anySelected =
+        selections.prayerReminders ||
+        selections.tahajjud ||
+        selections.quranReminder ||
+        selections.dhuhrAsrDua ||
+        selections.fridayReminders;
+      const granted = anySelected ? await requestNotificationPermissionAsync() : true;
+      const effective = granted
+        ? selections
+        : {
+            prayerReminders: false,
+            tahajjud: false,
+            quranReminder: false,
+            dhuhrAsrDua: false,
+            fridayReminders: false,
+          };
+
+      persist({
+        ...preferences,
+        prayerNotifications: {
+          ...preferences.prayerNotifications,
+          ...Object.fromEntries(CORE_PRAYERS.map((prayer) => [prayer, effective.prayerReminders])),
+          tahajjud: effective.tahajjud,
+        },
+        quranReminderEnabled: effective.quranReminder,
+        dhuhrAsrDuaEnabled: effective.dhuhrAsrDua,
+        jumuahMorningEnabled: effective.fridayReminders,
+        fridayBlessingsEnabled: effective.fridayReminders,
+        fridayDuaEnabled: effective.fridayReminders,
+      });
+
+      return granted;
+    },
+    [persist, preferences],
+  );
+
   return (
     <NotificationsContext.Provider
       value={{
@@ -140,6 +273,11 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setPrayerNotificationEnabled,
         setQuranReminderEnabled,
         setQuranReminderTime,
+        setDhuhrAsrDuaEnabled,
+        setJumuahMorningEnabled,
+        setFridayBlessingsEnabled,
+        setFridayDuaEnabled,
+        completeOnboarding,
       }}>
       {children}
     </NotificationsContext.Provider>
