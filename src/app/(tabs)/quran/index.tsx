@@ -111,6 +111,10 @@ export default function QuranIndexScreen() {
             sections={groupedSections}
             keyExtractor={(chapter) => String(chapter.id)}
             contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
+            initialNumToRender={16}
+            maxToRenderPerBatch={16}
+            windowSize={7}
             ListHeaderComponent={
               recent.length > 0 ? (
                 <View style={styles.recentSection}>
@@ -168,6 +172,10 @@ export default function QuranIndexScreen() {
             sections={[{ title: '', data: ascending ? JUZ_NUMBERS : [...JUZ_NUMBERS].reverse() }]}
             keyExtractor={(juz) => String(juz)}
             contentContainerStyle={styles.listContent}
+            stickySectionHeadersEnabled={false}
+            initialNumToRender={16}
+            maxToRenderPerBatch={16}
+            windowSize={7}
             renderItem={({ item: juz }) => (
               <Pressable onPress={() => openJuz(juz)}>
                 <ThemedView type="backgroundElement" style={styles.row}>
