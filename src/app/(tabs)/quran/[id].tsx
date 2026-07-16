@@ -16,6 +16,12 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { getQuranChapters, QuranChapter } from '@/lib/quran-chapters';
+import {
+  DEFAULT_READER_COLOR_SCHEME,
+  getReaderColorScheme,
+  READER_COLOR_SCHEME_OPTIONS,
+  setReaderColorScheme as persistReaderColorScheme,
+} from '@/lib/quran-color-scheme';
 import { DEFAULT_RECITER_ID, getReciters, Reciter } from '@/lib/quran-foundation-client';
 import { recordRecentRead } from '@/lib/quran-recent';
 import {
@@ -39,10 +45,16 @@ export default function QuranReaderScreen() {
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [reciterId, setReciterId] = useState(DEFAULT_RECITER_ID);
   const [textSizeScale, setTextSizeScale] = useState(DEFAULT_TEXT_SIZE_SCALE);
+  const [colorScheme, setColorScheme] = useState(DEFAULT_READER_COLOR_SCHEME);
   const [playbackState, setPlaybackState] = useState<PlaybackState>(null);
   const pagerHandleRef = useRef<MushafPagerHandle>(null);
   const { setHidden: setTabBarHidden } = useTabBarVisibility();
-  const manuscript = useManuscriptColors();
+  const manuscript = useManuscriptColors(colorScheme);
+
+  function chooseColorScheme(scheme: typeof colorScheme) {
+    setColorScheme(scheme);
+    persistReaderColorScheme(scheme);
+  }
 
   function cyclePlaybackRate() {
     if (!playbackState) return;
@@ -61,6 +73,10 @@ export default function QuranReaderScreen() {
 
   useEffect(() => {
     getTextSizeScale().then(setTextSizeScale);
+  }, []);
+
+  useEffect(() => {
+    getReaderColorScheme().then(setColorScheme);
   }, []);
 
   function chooseTextSizeScale(scale: number) {
@@ -117,13 +133,22 @@ export default function QuranReaderScreen() {
           {chromeVisible && (
             <>
               <View style={styles.headerText}>
-                <ThemedText type="smallBold" numberOfLines={1}>
+                <ThemedText type="smallBold" numberOfLines={1} style={{ color: manuscript.text }}>
                   {currentChapterName ?? ' '}
                 </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
+                <ThemedText type="small" style={{ color: manuscript.textSecondary }}>
                   {pageInfo ? `Page ${pageInfo.pageNumber} · Juz' ${pageInfo.juzNumber}` : ' '}
                 </ThemedText>
               </View>
+
+              <Pressable
+                onPress={() => pagerHandleRef.current?.playFirstVerseOfCurrentPage()}
+                hitSlop={8}>
+                <SymbolView
+                  name={{ ios: 'play.circle', android: 'play_circle', web: 'play_circle' }}
+                  size={22}
+                />
+              </Pressable>
 
               <Pressable onPress={() => setModeMenuOpen((prev) => !prev)} hitSlop={8}>
                 <SymbolView
@@ -154,6 +179,26 @@ export default function QuranReaderScreen() {
                   </ThemedText>
                 </ThemedView>
               </Pressable>
+            </View>
+
+            <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
+              Appearance
+            </ThemedText>
+            <View style={styles.textSizeRow}>
+              {READER_COLOR_SCHEME_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={styles.textSizeButton}
+                  onPress={() => chooseColorScheme(option.value)}>
+                  <ThemedView
+                    type={option.value === colorScheme ? 'backgroundSelected' : 'backgroundElement'}
+                    style={styles.textSizeButtonInner}>
+                    <ThemedText type={option.value === colorScheme ? 'smallBold' : 'small'}>
+                      {option.label}
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+              ))}
             </View>
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
@@ -210,6 +255,7 @@ export default function QuranReaderScreen() {
               showTranslation={showTranslation}
               reciterId={reciterId}
               textSizeScale={textSizeScale}
+              colorScheme={colorScheme}
               onPageInfoChange={handlePageInfoChange}
               onPlaybackStateChange={setPlaybackState}
             />
@@ -290,7 +336,7 @@ const styles = StyleSheet.create({
     right: Spacing.four,
     zIndex: 10,
     width: 220,
-    maxHeight: 420,
+    maxHeight: 500,
     borderRadius: Spacing.three,
     padding: Spacing.two,
   },

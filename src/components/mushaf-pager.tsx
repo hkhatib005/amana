@@ -38,9 +38,11 @@ export const MANUSCRIPT_COLORS = {
   dark: { background: '#1B1712', text: '#EDE0C8', textSecondary: '#A6926B' },
 };
 
-export function useManuscriptColors() {
-  const scheme = useColorScheme();
-  return MANUSCRIPT_COLORS[scheme === 'dark' ? 'dark' : 'light'];
+export function useManuscriptColors(override?: 'system' | 'light' | 'dark') {
+  const systemScheme = useColorScheme();
+  const effective =
+    !override || override === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : override;
+  return MANUSCRIPT_COLORS[effective];
 }
 
 export type MushafPageInfo = { pageNumber: number; juzNumber: number; chapterId: number };
@@ -54,6 +56,7 @@ export type MushafPagerHandle = {
   previous: () => void;
   stop: () => void;
   setPlaybackRate: (rate: number) => void;
+  playFirstVerseOfCurrentPage: () => void;
 };
 
 type MushafPagerProps = {
@@ -62,6 +65,7 @@ type MushafPagerProps = {
   showTranslation: boolean;
   reciterId: number;
   textSizeScale: number;
+  colorScheme: 'system' | 'light' | 'dark';
   onPageInfoChange: (info: MushafPageInfo) => void;
   onPlaybackStateChange: (state: PlaybackState) => void;
 };
@@ -75,6 +79,7 @@ function MushafPageContent({
   activeVerseKey,
   loadingVerseKey,
   textSizeScale,
+  colorScheme,
   onVersePress,
 }: {
   pageNumber: number;
@@ -85,9 +90,10 @@ function MushafPageContent({
   activeVerseKey: string | null;
   loadingVerseKey: string | null;
   textSizeScale: number;
+  colorScheme: 'system' | 'light' | 'dark';
   onVersePress: (verseKey: string) => void;
 }) {
-  const theme = useManuscriptColors();
+  const theme = useManuscriptColors(colorScheme);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const baseFlowing = isLandscape ? { fontSize: 22, lineHeight: 62 } : { fontSize: 17, lineHeight: 48 };
@@ -210,7 +216,16 @@ function MushafPageContent({
 }
 
 export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(function MushafPager(
-  { initialPageNumber, chapters, showTranslation, reciterId, textSizeScale, onPageInfoChange, onPlaybackStateChange },
+  {
+    initialPageNumber,
+    chapters,
+    showTranslation,
+    reciterId,
+    textSizeScale,
+    colorScheme,
+    onPageInfoChange,
+    onPlaybackStateChange,
+  },
   ref,
 ) {
   const pagerRef = useRef<PagerView>(null);
@@ -219,7 +234,7 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   const loadingPages = useRef<Set<number>>(new Set());
   const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/UthmanicHafs.ttf') });
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
-  const manuscript = useManuscriptColors();
+  const manuscript = useManuscriptColors(colorScheme);
 
   const playlist = useAudioPlaylist({ loop: 'none' });
   const playlistStatus = useAudioPlaylistStatus(playlist);
@@ -268,25 +283,6 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     if (playlistStatus.trackCount === 0) return;
     setActiveVerseKey(playlistVerseKeysRef.current[playlistStatus.currentIndex] ?? null);
   }, [playlistStatus.currentIndex, playlistStatus.trackCount]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      play: () => playlist.play(),
-      pause: () => playlist.pause(),
-      next: () => playlist.next(),
-      previous: () => playlist.previous(),
-      stop: () => {
-        playlist.clear();
-        playlistVerseKeysRef.current = [];
-        setActiveVerseKey(null);
-      },
-      setPlaybackRate: (rate: number) => {
-        playlist.playbackRate = rate;
-      },
-    }),
-    [playlist],
-  );
 
   useEffect(() => {
     onPlaybackStateChange(
@@ -422,6 +418,29 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing, reciterId],
   );
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      play: () => playlist.play(),
+      pause: () => playlist.pause(),
+      next: () => playlist.next(),
+      previous: () => playlist.previous(),
+      stop: () => {
+        playlist.clear();
+        playlistVerseKeysRef.current = [];
+        setActiveVerseKey(null);
+      },
+      setPlaybackRate: (rate: number) => {
+        playlist.playbackRate = rate;
+      },
+      playFirstVerseOfCurrentPage: () => {
+        const current = pagesData[pageIndex + 1];
+        if (current && current.length > 0) playVerse(current[0].key);
+      },
+    }),
+    [playlist, pagesData, pageIndex, playVerse],
+  );
+
   return (
     <PagerView
       ref={pagerRef}
@@ -445,6 +464,7 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
                 activeVerseKey={activeVerseKey}
                 loadingVerseKey={loadingVerseKey}
                 textSizeScale={textSizeScale}
+                colorScheme={colorScheme}
                 onVersePress={playVerse}
               />
             )}
