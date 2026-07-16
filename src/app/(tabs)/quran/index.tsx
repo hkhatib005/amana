@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SFSymbol } from 'sf-symbols-typescript';
@@ -37,19 +37,6 @@ export default function QuranIndexScreen() {
     }, []),
   );
 
-  // Guards against a race where the tab's navigator is still settling right after this
-  // screen gains focus, which can otherwise swallow a push into the reader.
-  const settledRef = useRef(false);
-  useFocusEffect(
-    useCallback(() => {
-      settledRef.current = false;
-      const t = setTimeout(() => {
-        settledRef.current = true;
-      }, 1000);
-      return () => clearTimeout(t);
-    }, []),
-  );
-
   const groupedSections = useMemo(() => {
     if (!chapters) return [];
     const result: { title: string; juz: number; data: QuranChapter[] }[] = [];
@@ -68,12 +55,10 @@ export default function QuranIndexScreen() {
   }, [chapters, ascending]);
 
   function openChapter(chapter: QuranChapter) {
-    if (!settledRef.current) return;
     router.push({ pathname: '/quran/[id]', params: { id: chapter.startPage } });
   }
 
   function openJuz(juz: number) {
-    if (!settledRef.current) return;
     router.push({ pathname: '/quran/[id]', params: { id: startingPageForJuz(juz) } });
   }
 
