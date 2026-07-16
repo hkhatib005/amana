@@ -13,6 +13,7 @@ type QiblaCompassProps = {
 
 const RING_WIDTH = 18;
 const TICK_STEP = 10;
+const LABEL_STEP = 30;
 
 function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
   const rad = (angleDeg * Math.PI) / 180;
@@ -30,7 +31,6 @@ export function QiblaCompass({ size = 300, qiblaBearing, heading }: QiblaCompass
     const isMajor = deg % 90 === 0;
     const outer = polarToCartesian(cx, cy, faceRadius - 4, deg);
     const inner = polarToCartesian(cx, cy, faceRadius - (isMajor ? 18 : 12), deg);
-    const label = polarToCartesian(cx, cy, faceRadius - 28, deg);
     ticks.push(
       <Line
         key={`tick-${deg}`}
@@ -41,17 +41,22 @@ export function QiblaCompass({ size = 300, qiblaBearing, heading }: QiblaCompass
         stroke={isMajor ? UtilityColors.navy : UtilityColors.textMuted}
         strokeWidth={isMajor ? 2 : 1.2}
       />,
-      <SvgText
-        key={`label-${deg}`}
-        x={label.x}
-        y={label.y + 4}
-        fontSize={11}
-        fontWeight={isMajor ? '700' : '500'}
-        fill={isMajor ? UtilityColors.navy : UtilityColors.textMuted}
-        textAnchor="middle">
-        {deg}
-      </SvgText>,
     );
+    if (deg % LABEL_STEP === 0) {
+      const label = polarToCartesian(cx, cy, faceRadius - 28, deg);
+      ticks.push(
+        <SvgText
+          key={`label-${deg}`}
+          x={label.x}
+          y={label.y + 4}
+          fontSize={11}
+          fontWeight={isMajor ? '700' : '500'}
+          fill={isMajor ? UtilityColors.navy : UtilityColors.textMuted}
+          textAnchor="middle">
+          {deg}
+        </SvgText>,
+      );
+    }
   }
 
   return (
