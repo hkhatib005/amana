@@ -1,7 +1,14 @@
 import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 import { SurahBanner } from '@/components/surah-banner';
@@ -58,6 +65,12 @@ function MushafPageContent({
   onVersePress: (verseKey: string) => void;
 }) {
   const theme = useManuscriptColors();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const flowingTextSize = isLandscape
+    ? { fontSize: 22, lineHeight: 62 }
+    : { fontSize: 17, lineHeight: 48 };
+  const translationTextSize = isLandscape ? { fontSize: 19, lineHeight: 28 } : undefined;
 
   const segments = useMemo(() => {
     if (!verses) return [];
@@ -101,6 +114,7 @@ function MushafPageContent({
                   onPress={() => onVersePress(verse.key)}
                   style={[
                     styles.flowingText,
+                    flowingTextSize,
                     { color: verse.key === activeVerseKey ? MANUSCRIPT_ACCENT : theme.text, fontFamily },
                     verse.key === loadingVerseKey && styles.verseLoading,
                   ]}>
@@ -110,13 +124,13 @@ function MushafPageContent({
                     ﴿{toArabicIndicDigits(verse.verseNumber)}﴾
                   </Text>
                 </Text>
-                <Text style={[styles.translationText, { color: theme.textSecondary }]}>
+                <Text style={[styles.translationText, translationTextSize, { color: theme.textSecondary }]}>
                   {verse.translation}
                 </Text>
               </View>
             ))
           ) : (
-            <Text style={[styles.flowingText, { color: theme.text, fontFamily }]}>
+            <Text style={[styles.flowingText, flowingTextSize, { color: theme.text, fontFamily }]}>
               {segment.verses.map((verse) => (
                 <Text
                   key={verse.key}
