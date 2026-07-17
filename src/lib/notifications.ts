@@ -238,7 +238,7 @@ export async function scheduleUpcomingPrayerNotifications(
       await scheduleAt(
         new Date(windowEnd.getTime() - 10 * 60000),
         APP_TITLE,
-        body(`we saw you didn't pray ${label} — there's 10 minutes left, go pray.`),
+        body(`${label} window closes in 10 minutes — don't miss it.`),
         { kind: 'prayer-missed', prayer },
         `prayer-missed-${prayer}-${stamp}`,
       );

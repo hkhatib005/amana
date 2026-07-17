@@ -1,10 +1,6 @@
 import { createServerClient } from '@quranjs/api/server';
 import type { VerseKey } from '@quranjs/api';
 
-/**
- * Pre-Production credentials for now (see .env.local). Swap to the Production
- * client ID/secret/oauth endpoint/gateway before a release build.
- */
 export const quranClient = createServerClient({
   clientId: process.env.EXPO_PUBLIC_QURAN_CLIENT_ID!,
   clientSecret: process.env.EXPO_PUBLIC_QURAN_CLIENT_SECRET!,

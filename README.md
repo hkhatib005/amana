@@ -1,56 +1,64 @@
-# Welcome to your Expo app 👋
+# Amana
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A calm, all-in-one companion for daily Muslim prayer and Qur'an reading — built with [Expo](https://expo.dev) and React Native.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Prayer times & Athan** — accurate, location-based prayer times with a region-aware calculation method default and a configurable Asr juristic method (Shafi/Hanafi)
+- **Qibla compass** — points to the exact direction of the Kaaba from wherever you are
+- **Qur'an reader** — full Mushaf pages via the Quran Foundation API, with recitation playback, bookmarks, notes, and translations
+- **Duas** — a library of daily duas
+- **Prayer tracker** — mark off each prayer and build a streak
+- **Reminders** — customizable local notifications for prayers, adhkar (morning/evening remembrance), and Friday sunnahs
+- **iOS widgets** — Next Prayer, Prayer Times, Qibla, Daily Verse, Adhkar, and Tracker widgets for the Home Screen
+- **Masjid finder** — locate nearby mosques
+- **Islamic calendar** — Hijri date conversion and key Islamic days
+- **First-launch onboarding** — a short welcome carousel plus a replayable "How to use Amana" tutorial in Settings
+
+## Tech stack
+
+- [Expo](https://docs.expo.dev/versions/v57.0.0/) (SDK 57) + [expo-router](https://docs.expo.dev/router/introduction/) for file-based routing
+- TypeScript, React Native 0.86, React 19
+- [`adhan`](https://github.com/batoulapps/adhan-js) for prayer time calculation
+- [`@umalqura/core`](https://www.npmjs.com/package/@umalqura/core) for Hijri date conversion
+- [`@quranjs/api`](https://www.npmjs.com/package/@quranjs/api) against the [Quran Foundation API](https://api-docs.quran.foundation/) for Qur'an content
+- `expo-widgets` for native iOS Home Screen widgets
+- `expo-notifications` for local prayer/adhkar/reminder scheduling
+
+## Getting started
+
+1. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start the app
+2. Add Quran Foundation API credentials in a `.env.local` file at the project root:
 
    ```bash
-   npx expo start
+   EXPO_PUBLIC_QURAN_CLIENT_ID=your-client-id
+   EXPO_PUBLIC_QURAN_CLIENT_SECRET=your-client-secret
+   EXPO_PUBLIC_QURAN_OAUTH_ENDPOINT=https://oauth2.quran.foundation
+   EXPO_PUBLIC_QURAN_GATEWAY=https://apis.quran.foundation
    ```
 
-In the output, you'll find options to open the app in a
+3. Run a development build (this project uses native modules, so it won't run in Expo Go):
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   ```bash
+   npx expo run:ios
+   # or
+   npx expo run:android
+   ```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Project structure
 
-## Get a fresh project
+- `src/app` — screens and routes (expo-router file-based routing)
+- `src/components` — shared UI components
+- `src/providers` — React context providers (prayer times, notifications, prayer tracker, etc.)
+- `src/lib` — core logic (prayer time calculation, notification scheduling, Quran API client, etc.)
+- `src/constants` — static data and theme constants
+- `widgets/` — iOS Home Screen widget components (`expo-widgets`)
 
-When you're ready, run:
+## License
 
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+See [LICENSE](./LICENSE).
