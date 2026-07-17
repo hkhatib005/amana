@@ -81,7 +81,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
             </View>
 
             <View style={styles.switchRow}>
-              <ThemedText style={styles.switchLabel}>Dua between Dhuhr and Asr</ThemedText>
+              <ThemedText style={styles.switchLabel}>Wednesday Dua (Dhuhr–Asr)</ThemedText>
               <Switch value={dhuhrAsrDua} onValueChange={setDhuhrAsrDua} />
             </View>
 

@@ -64,11 +64,11 @@ function timeFor(key: ReminderPrayer, times: DailyPrayerTimes, tahajjudTime: Dat
 }
 
 export default function PrayersScreen() {
-  const { loading, permissionDenied, error, times, coords, method, retry } = usePrayerTimes();
+  const { loading, permissionDenied, error, times, coords, method, madhab, retry } = usePrayerTimes();
   const { city, country } = usePlaceName(coords);
   const weather = useWeather(coords);
-  const nextPrayer = useNextPrayer(times, coords, method, 1000);
-  const tomorrowFajr = useTomorrowFajr(coords, method);
+  const nextPrayer = useNextPrayer(times, coords, method, madhab, 1000);
+  const tomorrowFajr = useTomorrowFajr(coords, method, madhab);
   const { prayerNotifications, setPrayerNotificationEnabled } = useNotificationPreferences();
   const [now, setNow] = useState(() => new Date());
 

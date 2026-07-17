@@ -1,6 +1,12 @@
 import { Coordinates, PrayerTimes } from 'adhan';
 
-import { PrayerCalculationMethodKey, PrayerCalculationMethods } from '@/constants/prayer-methods';
+import {
+  DefaultPrayerMadhab,
+  PrayerCalculationMethodKey,
+  PrayerCalculationMethods,
+  PrayerMadhabKey,
+  PrayerMadhabs,
+} from '@/constants/prayer-methods';
 
 export type DailyPrayerTimes = {
   fajr: Date;
@@ -15,10 +21,12 @@ export function computePrayerTimes(
   latitude: number,
   longitude: number,
   method: PrayerCalculationMethodKey,
+  madhab: PrayerMadhabKey = DefaultPrayerMadhab,
   date: Date = new Date(),
 ): DailyPrayerTimes {
   const coordinates = new Coordinates(latitude, longitude);
   const params = PrayerCalculationMethods[method].factory();
+  params.madhab = PrayerMadhabs[madhab].value;
   const times = new PrayerTimes(coordinates, date, params);
 
   return {

@@ -1,7 +1,8 @@
 import * as Notifications from 'expo-notifications';
 
+import { EVENING_OPENER, MORNING_OPENER } from '@/constants/adhkar-openers';
 import prayerVirtues from '@/constants/prayer-virtues.json';
-import { PrayerCalculationMethodKey } from '@/constants/prayer-methods';
+import { PrayerCalculationMethodKey, PrayerMadhabKey } from '@/constants/prayer-methods';
 import { computePrayerTimes, computeTahajjudTime } from '@/lib/prayer-times';
 
 const APP_TITLE = 'Amana - Muslim App';
@@ -69,7 +70,15 @@ function virtueForPrayer(prayer: CorePrayer, date: Date): VirtueFact {
   return facts[dayOfYear(date) % facts.length];
 }
 
-/** Friday, using JS's Date#getDay() (Sunday = 0 ... Saturday = 6). */
+/** Using JS's Date#getDay() (Sunday = 0 ... Saturday = 6). */
+function isWednesday(date: Date) {
+  return date.getDay() === 3;
+}
+
+function isThursday(date: Date) {
+  return date.getDay() === 4;
+}
+
 function isFriday(date: Date) {
   return date.getDay() === 5;
 }
@@ -84,7 +93,9 @@ type NotificationKind =
   | 'sunrise'
   | 'tahajjud'
   | 'dhuhr-asr-dua'
-  | 'friday-dua';
+  | 'friday-dua'
+  | 'adhkar-sabah'
+  | 'adhkar-masa';
 
 export function configureNotificationHandler() {
   Notifications.setNotificationHandler({
@@ -144,6 +155,7 @@ async function scheduleAt(
 export type ExtraDailyToggles = {
   dhuhrAsrDuaEnabled: boolean;
   fridayDuaEnabled: boolean;
+  adhkarRemindersEnabled: boolean;
 };
 
 function slotsPerDay(enabled: Record<ReminderPrayer, boolean>, extra: ExtraDailyToggles): number {
@@ -151,8 +163,9 @@ function slotsPerDay(enabled: Record<ReminderPrayer, boolean>, extra: ExtraDaily
   for (const prayer of CORE_PRAYERS) if (enabled[prayer]) count += 3; // at-time + 15min + missed
   if (enabled.sunrise) count += 1;
   if (enabled.tahajjud) count += 1;
-  if (extra.dhuhrAsrDuaEnabled) count += 1;
+  if (extra.dhuhrAsrDuaEnabled) count += 1; // only actually fires 1 day in 7 (Wednesday); counted every day as a safe upper bound
   if (extra.fridayDuaEnabled) count += 1; // only actually fires 1 day in 7; counted every day as a safe upper bound
+  if (extra.adhkarRemindersEnabled) count += 2; // sabah + masa
   return count;
 }
 
@@ -164,6 +177,7 @@ function slotsPerDay(enabled: Record<ReminderPrayer, boolean>, extra: ExtraDaily
 export async function scheduleUpcomingPrayerNotifications(
   coords: { latitude: number; longitude: number },
   method: PrayerCalculationMethodKey,
+  madhab: PrayerMadhabKey,
   enabled: Record<ReminderPrayer, boolean>,
   extra: ExtraDailyToggles,
 ) {
@@ -175,6 +189,8 @@ export async function scheduleUpcomingPrayerNotifications(
     'tahajjud',
     'dhuhr-asr-dua',
     'friday-dua',
+    'adhkar-sabah',
+    'adhkar-masa',
   ]);
 
   const perDay = slotsPerDay(enabled, extra);
@@ -190,8 +206,8 @@ export async function scheduleUpcomingPrayerNotifications(
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
 
-    const times = computePrayerTimes(coords.latitude, coords.longitude, method, date);
-    const nextFajr = computePrayerTimes(coords.latitude, coords.longitude, method, nextDate).fajr;
+    const times = computePrayerTimes(coords.latitude, coords.longitude, method, madhab, date);
+    const nextFajr = computePrayerTimes(coords.latitude, coords.longitude, method, madhab, nextDate).fajr;
 
     const stamp = dateStamp(date);
 
@@ -243,22 +259,41 @@ export async function scheduleUpcomingPrayerNotifications(
       await scheduleAt(
         tahajjudTime,
         APP_TITLE,
-        body(
-          'Tahajjud dua is like an arrow that does not miss its target — rise and make dua.',
-        ),
+        body('Tahajjud dua is like an arrow that does not miss its target — rise and make dua.'),
         { kind: 'tahajjud', prayer: 'tahajjud' },
         `tahajjud-${stamp}`,
       );
     }
 
-    if (extra.dhuhrAsrDuaEnabled) {
+    if (extra.dhuhrAsrDuaEnabled && isWednesday(date)) {
       const midpoint = new Date(times.dhuhr.getTime() + (times.asr.getTime() - times.dhuhr.getTime()) / 2);
       await scheduleAt(
         midpoint,
         APP_TITLE,
-        body('the time between Dhuhr and Asr is blessed — make dua.'),
+        'Reminder: from the abandoned Sunnahs is to make dua now, between Dhuhr and Asr on Wednesday, as the Prophet ﷺ used to do.',
         { kind: 'dhuhr-asr-dua' },
         `dhuhr-asr-dua-${stamp}`,
+      );
+    }
+
+    if (extra.adhkarRemindersEnabled) {
+      await scheduleAt(
+        new Date(times.fajr.getTime() + 10 * 60000),
+        APP_TITLE,
+        `Time for Adhkar al-Sabah (morning remembrance). "${MORNING_OPENER.arabic}" — ${MORNING_OPENER.translation}`,
+        { kind: 'adhkar-sabah' },
+        `adhkar-sabah-${stamp}`,
+      );
+
+      const masaMessage = isThursday(date)
+        ? `Time for Adhkar al-Masa (evening remembrance). "${EVENING_OPENER.arabic}" — ${EVENING_OPENER.translation} And don't forget: Jumu'ah is near — read Surah Al-Kahf and send blessings on the Prophet ﷺ.`
+        : `Time for Adhkar al-Masa (evening remembrance). "${EVENING_OPENER.arabic}" — ${EVENING_OPENER.translation}`;
+      await scheduleAt(
+        new Date(times.asr.getTime() + 10 * 60000),
+        APP_TITLE,
+        masaMessage,
+        { kind: 'adhkar-masa' },
+        `adhkar-masa-${stamp}`,
       );
     }
 
@@ -266,9 +301,7 @@ export async function scheduleUpcomingPrayerNotifications(
       await scheduleAt(
         new Date(times.maghrib.getTime() - 60 * 60000),
         APP_TITLE,
-        body(
-          'this is said to be one of the hours of acceptance on Friday — make dua.',
-        ),
+        body('this is said to be one of the hours of acceptance on Friday — make dua.'),
         { kind: 'friday-dua' },
         `friday-dua-${stamp}`,
       );

@@ -8,6 +8,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { OnboardingScreen } from '@/components/onboarding-screen';
+import { WelcomeCarousel } from '@/components/welcome-carousel';
 import { WidgetSync } from '@/components/widget-sync';
 import { configureNotificationHandler } from '@/lib/notifications';
 import { getHasCompletedOnboarding } from '@/lib/onboarding';
@@ -22,6 +23,7 @@ configureNotificationHandler();
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [welcomeSeen, setWelcomeSeen] = useState(false);
 
   useEffect(() => {
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
@@ -40,7 +42,11 @@ export default function RootLayout() {
             <WidgetSync />
             <TabBarVisibilityProvider>
               {onboardingComplete === false ? (
-                <OnboardingScreen onDone={() => setOnboardingComplete(true)} />
+                welcomeSeen ? (
+                  <OnboardingScreen onDone={() => setOnboardingComplete(true)} />
+                ) : (
+                  <WelcomeCarousel onDone={() => setWelcomeSeen(true)} />
+                )
               ) : (
                 onboardingComplete === true && (
                   <Stack screenOptions={{ headerShown: false }}>

@@ -52,9 +52,9 @@ function formatCountdown(target: Date, now: Date) {
 }
 
 export default function TodayScreen() {
-  const { loading, permissionDenied, error, times, coords, method, retry } = usePrayerTimes();
+  const { loading, permissionDenied, error, times, coords, method, madhab, retry } = usePrayerTimes();
   const city = useCityName(coords);
-  const nextPrayer = useNextPrayer(times, coords, method);
+  const nextPrayer = useNextPrayer(times, coords, method, madhab);
   const scrollY = useSharedValue(0);
 
   const scrollHandler = useAnimatedScrollHandler((event) => {

@@ -14,7 +14,7 @@ export function PageHeader({ title }: { title: string }) {
           size={22}
         />
       </Pressable>
-      <ThemedText type="title" style={styles.title} numberOfLines={1}>
+      <ThemedText type="title" style={styles.title} numberOfLines={2}>
         {title}
       </ThemedText>
     </View>
@@ -23,7 +23,7 @@ export function PageHeader({ title }: { title: string }) {
 
 const styles = StyleSheet.create({
   container: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
     paddingTop: Spacing.three,
     gap: Spacing.one,
   },

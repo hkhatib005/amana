@@ -15,6 +15,7 @@ export function useNextPrayer(
   times: DailyPrayerTimes | null,
   coords: { latitude: number; longitude: number } | null,
   method: Parameters<typeof computePrayerTimes>[2] | undefined,
+  madhab: Parameters<typeof computePrayerTimes>[3] | undefined,
   intervalMs = 60000,
 ) {
   const [now, setNow] = useState(() => new Date());
@@ -33,7 +34,7 @@ export function useNextPrayer(
     if (!coords || !method) return null;
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowTimes = computePrayerTimes(coords.latitude, coords.longitude, method, tomorrow);
+    const tomorrowTimes = computePrayerTimes(coords.latitude, coords.longitude, method, madhab, tomorrow);
     return { name: 'Fajr', time: tomorrowTimes.fajr };
-  }, [times, coords, method, now]);
+  }, [times, coords, method, madhab, now]);
 }

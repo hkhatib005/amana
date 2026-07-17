@@ -258,41 +258,6 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   const [noteModalVerse, setNoteModalVerse] = useState<QuranPageVerse | null>(null);
   const [noteText, setNoteText] = useState('');
 
-  const handleVerseLongPress = useCallback(
-    async (verse: QuranPageVerse) => {
-      const chapterName = chapters.find((c) => c.id === verse.chapterId)?.nameSimple ?? '';
-      const [bookmarked, existingNote] = await Promise.all([
-        isBookmarked(verse.key),
-        getNoteForVerse(verse.key),
-      ]);
-      Alert.alert(`${chapterName} ${verse.verseNumber}`, undefined, [
-        {
-          text: bookmarked ? 'Remove Bookmark' : 'Add Bookmark',
-          onPress: () =>
-            toggleBookmark({
-              verseKey: verse.key,
-              chapterName,
-              arabic: verse.arabic,
-              translation: verse.translation,
-            }),
-        },
-        {
-          text: existingNote ? 'Edit Note' : 'Add Note',
-          onPress: () => {
-            setNoteText(existingNote ?? '');
-            setNoteModalVerse(verse);
-          },
-        },
-        {
-          text: 'Show Translation',
-          onPress: () => Alert.alert(`${chapterName} ${verse.verseNumber}`, verse.translation),
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    },
-    [chapters],
-  );
-
   const saveNote = useCallback(async () => {
     if (!noteModalVerse) return;
     const chapterName = chapters.find((c) => c.id === noteModalVerse.chapterId)?.nameSimple ?? '';
@@ -530,6 +495,42 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
       }
     },
     [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing, reciterId],
+  );
+
+  const handleVerseLongPress = useCallback(
+    async (verse: QuranPageVerse) => {
+      const chapterName = chapters.find((c) => c.id === verse.chapterId)?.nameSimple ?? '';
+      const [bookmarked, existingNote] = await Promise.all([
+        isBookmarked(verse.key),
+        getNoteForVerse(verse.key),
+      ]);
+      Alert.alert(`${chapterName} ${verse.verseNumber}`, undefined, [
+        { text: 'Play from Here', onPress: () => playVerse(verse.key) },
+        {
+          text: bookmarked ? 'Remove Bookmark' : 'Add Bookmark',
+          onPress: () =>
+            toggleBookmark({
+              verseKey: verse.key,
+              chapterName,
+              arabic: verse.arabic,
+              translation: verse.translation,
+            }),
+        },
+        {
+          text: existingNote ? 'Edit Note' : 'Add Note',
+          onPress: () => {
+            setNoteText(existingNote ?? '');
+            setNoteModalVerse(verse);
+          },
+        },
+        {
+          text: 'Show Translation',
+          onPress: () => Alert.alert(`${chapterName} ${verse.verseNumber}`, verse.translation),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [chapters, playVerse],
   );
 
   useImperativeHandle(

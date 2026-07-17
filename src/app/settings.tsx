@@ -1,3 +1,5 @@
+import { Link } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -5,7 +7,7 @@ import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { PrayerCalculationMethods } from '@/constants/prayer-methods';
+import { PrayerCalculationMethods, PrayerMadhabs } from '@/constants/prayer-methods';
 import { useNotificationPreferences } from '@/providers/notifications-provider';
 import { usePrayerTimes } from '@/providers/prayer-times-provider';
 
@@ -16,7 +18,7 @@ const QURAN_REMINDER_PRESETS = [
 ];
 
 export default function SettingsScreen() {
-  const { method, setMethod } = usePrayerTimes();
+  const { method, setMethod, madhab, setMadhab } = usePrayerTimes();
   const {
     quranReminderEnabled,
     setQuranReminderEnabled,
@@ -30,6 +32,8 @@ export default function SettingsScreen() {
     setFridayBlessingsEnabled,
     fridayDuaEnabled,
     setFridayDuaEnabled,
+    adhkarRemindersEnabled,
+    setAdhkarRemindersEnabled,
   } = useNotificationPreferences();
 
   return (
@@ -40,74 +44,128 @@ export default function SettingsScreen() {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-        <ThemedText type="smallBold">Notifications</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-          Turn on reminders per prayer using the bell icons on the Prayers tab.
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.optionList}>
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>Daily Qur&apos;an reminder</ThemedText>
-            <Switch value={quranReminderEnabled} onValueChange={setQuranReminderEnabled} />
-          </View>
-
-          {quranReminderEnabled && (
-            <View style={styles.presetRow}>
-              {QURAN_REMINDER_PRESETS.map((preset) => {
-                const selected =
-                  quranReminderTime.hour === preset.hour && quranReminderTime.minute === preset.minute;
-                return (
-                  <Pressable
-                    key={preset.label}
-                    onPress={() => setQuranReminderTime({ hour: preset.hour, minute: preset.minute })}>
-                    <ThemedView
-                      type={selected ? 'backgroundSelected' : 'backgroundElement'}
-                      style={styles.presetChip}>
-                      <ThemedText type={selected ? 'smallBold' : 'small'}>{preset.label}</ThemedText>
-                    </ThemedView>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>Dua between Dhuhr and Asr</ThemedText>
-            <Switch value={dhuhrAsrDuaEnabled} onValueChange={setDhuhrAsrDuaEnabled} />
-          </View>
-        </ThemedView>
-
-        <ThemedText type="smallBold">Friday (Jumu&apos;ah)</ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.optionList}>
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>Friday sunnahs reminder</ThemedText>
-            <Switch value={jumuahMorningEnabled} onValueChange={setJumuahMorningEnabled} />
-          </View>
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>Send blessings reminders</ThemedText>
-            <Switch value={fridayBlessingsEnabled} onValueChange={setFridayBlessingsEnabled} />
-          </View>
-          <View style={styles.switchRow}>
-            <ThemedText style={styles.switchLabel}>Hour-of-acceptance dua</ThemedText>
-            <Switch value={fridayDuaEnabled} onValueChange={setFridayDuaEnabled} />
-          </View>
-        </ThemedView>
-
-        <ThemedText type="smallBold">Prayer calculation method</ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.optionList}>
-          {Object.entries(PrayerCalculationMethods).map(([key, { label }]) => (
-            <Pressable key={key} onPress={() => setMethod(key as keyof typeof PrayerCalculationMethods)}>
-              <ThemedView
-                type={key === method ? 'backgroundSelected' : 'backgroundElement'}
-                style={styles.optionRow}>
-                <ThemedText type={key === method ? 'smallBold' : 'default'}>{label}</ThemedText>
+          showsVerticalScrollIndicator={false}
+        >
+          <Link href="/tutorial" asChild>
+            <Pressable>
+              <ThemedView type="backgroundElement" style={styles.tutorialRow}>
+                <ThemedText style={styles.switchLabel}>How to use Amana</ThemedText>
+                <SymbolView
+                  name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                  size={16}
+                />
               </ThemedView>
             </Pressable>
-          ))}
-        </ThemedView>
+          </Link>
+
+          <ThemedText type="smallBold">Notifications</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+            Turn on reminders per prayer using the bell icons on the Prayers tab.
+          </ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.optionList}>
+            <View style={styles.switchRow}>
+              <ThemedText style={styles.switchLabel}>Daily Qur&apos;an reminder</ThemedText>
+              <Switch value={quranReminderEnabled} onValueChange={setQuranReminderEnabled} />
+            </View>
+
+            {quranReminderEnabled && (
+              <View style={styles.presetRow}>
+                {QURAN_REMINDER_PRESETS.map((preset) => {
+                  const selected =
+                    quranReminderTime.hour === preset.hour && quranReminderTime.minute === preset.minute;
+                  return (
+                    <Pressable
+                      key={preset.label}
+                      onPress={() =>
+                        setQuranReminderTime({
+                          hour: preset.hour,
+                          minute: preset.minute,
+                        })
+                      }
+                    >
+                      <ThemedView
+                        type={selected ? 'backgroundSelected' : 'backgroundElement'}
+                        style={styles.presetChip}
+                      >
+                        <ThemedText type={selected ? 'smallBold' : 'small'}>{preset.label}</ThemedText>
+                      </ThemedView>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabelGroup}>
+                <ThemedText>Wednesday Dua (Dhuhr–Asr)</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  An abandoned Sunnah — the Prophet ﷺ made dua between Dhuhr and Asr on Wednesdays
+                </ThemedText>
+              </View>
+              <Switch value={dhuhrAsrDuaEnabled} onValueChange={setDhuhrAsrDuaEnabled} />
+            </View>
+
+            <View style={styles.switchRow}>
+              <View style={styles.switchLabelGroup}>
+                <ThemedText>Adhkar reminders</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Adhkar al-Sabah 10 min after Fajr, Adhkar al-Masa 10 min after Asr
+                </ThemedText>
+              </View>
+              <Switch value={adhkarRemindersEnabled} onValueChange={setAdhkarRemindersEnabled} />
+            </View>
+          </ThemedView>
+
+          <ThemedText type="smallBold">Friday (Jumu&apos;ah)</ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.optionList}>
+            <View style={styles.switchRow}>
+              <ThemedText style={styles.switchLabel}>Friday sunnahs reminder</ThemedText>
+              <Switch value={jumuahMorningEnabled} onValueChange={setJumuahMorningEnabled} />
+            </View>
+            <View style={styles.switchRow}>
+              <ThemedText style={styles.switchLabel}>Send blessings reminders</ThemedText>
+              <Switch value={fridayBlessingsEnabled} onValueChange={setFridayBlessingsEnabled} />
+            </View>
+            <View style={styles.switchRow}>
+              <ThemedText style={styles.switchLabel}>Hour-of-acceptance dua</ThemedText>
+              <Switch value={fridayDuaEnabled} onValueChange={setFridayDuaEnabled} />
+            </View>
+          </ThemedView>
+
+          <ThemedText type="smallBold">Prayer calculation method</ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.optionList}>
+            {Object.entries(PrayerCalculationMethods).map(([key, { label }]) => (
+              <Pressable key={key} onPress={() => setMethod(key as keyof typeof PrayerCalculationMethods)}>
+                <ThemedView
+                  type={key === method ? 'backgroundSelected' : 'backgroundElement'}
+                  style={styles.optionRow}
+                >
+                  <ThemedText type={key === method ? 'smallBold' : 'default'}>{label}</ThemedText>
+                </ThemedView>
+              </Pressable>
+            ))}
+          </ThemedView>
+
+          <ThemedText type="smallBold">Asr juristic method</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+            Determines how early Asr starts. Most schools use Standard; Hanafi starts Asr later.
+          </ThemedText>
+
+          <ThemedView type="backgroundElement" style={styles.optionList}>
+            {Object.entries(PrayerMadhabs).map(([key, { label }]) => (
+              <Pressable key={key} onPress={() => setMadhab(key as keyof typeof PrayerMadhabs)}>
+                <ThemedView
+                  type={key === madhab ? 'backgroundSelected' : 'backgroundElement'}
+                  style={styles.optionRow}
+                >
+                  <ThemedText type={key === madhab ? 'smallBold' : 'default'}>{label}</ThemedText>
+                </ThemedView>
+              </Pressable>
+            ))}
+          </ThemedView>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -136,6 +194,14 @@ const styles = StyleSheet.create({
   hint: {
     marginTop: -Spacing.two,
   },
+  tutorialRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: Spacing.four,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
   optionList: {
     borderRadius: Spacing.four,
     paddingHorizontal: Spacing.four,
@@ -159,6 +225,12 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
     minWidth: 0,
+  },
+  switchLabelGroup: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    gap: Spacing.half,
   },
   presetRow: {
     flexDirection: 'row',

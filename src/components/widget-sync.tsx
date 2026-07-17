@@ -18,17 +18,17 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Pushes fresh timeline/snapshot data to every home screen widget whenever the underlying app state changes. */
 export function WidgetSync() {
-  const { times, coords, method } = usePrayerTimes();
+  const { times, coords, method, madhab } = usePrayerTimes();
   const { todayCompleted, streak } = usePrayerTracker();
-  const tomorrowFajr = useTomorrowFajr(coords, method);
+  const tomorrowFajr = useTomorrowFajr(coords, method, madhab);
 
   useEffect(() => {
     if (!times || !coords || !tomorrowFajr) return;
 
     const tomorrow = new Date(Date.now() + ONE_DAY_MS);
     const dayAfter = new Date(Date.now() + 2 * ONE_DAY_MS);
-    const tomorrowTimes = computePrayerTimes(coords.latitude, coords.longitude, method, tomorrow);
-    const dayAfterFajr = computePrayerTimes(coords.latitude, coords.longitude, method, dayAfter).fajr;
+    const tomorrowTimes = computePrayerTimes(coords.latitude, coords.longitude, method, madhab, tomorrow);
+    const dayAfterFajr = computePrayerTimes(coords.latitude, coords.longitude, method, madhab, dayAfter).fajr;
 
     NextPrayerWidget.updateTimeline([
       ...buildNextPrayerTimeline(times, tomorrowTimes.fajr),
@@ -50,7 +50,7 @@ export function WidgetSync() {
       compassDirection: compassDirectionFromBearing(bearingDegrees),
       distanceKm: computeDistanceToKaabaKm(coords.latitude, coords.longitude),
     });
-  }, [times, coords, method, tomorrowFajr]);
+  }, [times, coords, method, madhab, tomorrowFajr]);
 
   useEffect(() => {
     TrackerWidget.updateSnapshot({ completedCount: todayCompleted.length, streak });

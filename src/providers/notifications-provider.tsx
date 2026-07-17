@@ -36,6 +36,7 @@ type Preferences = {
   jumuahMorningEnabled: boolean;
   fridayBlessingsEnabled: boolean;
   fridayDuaEnabled: boolean;
+  adhkarRemindersEnabled: boolean;
 };
 
 const DEFAULT_PREFERENCES: Preferences = {
@@ -46,6 +47,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   jumuahMorningEnabled: false,
   fridayBlessingsEnabled: false,
   fridayDuaEnabled: false,
+  adhkarRemindersEnabled: false,
 };
 
 export type OnboardingSelections = {
@@ -66,6 +68,7 @@ type NotificationsContextValue = Preferences & {
   setJumuahMorningEnabled: (enabled: boolean) => void;
   setFridayBlessingsEnabled: (enabled: boolean) => void;
   setFridayDuaEnabled: (enabled: boolean) => void;
+  setAdhkarRemindersEnabled: (enabled: boolean) => void;
   /** Applies a first-run onboarding selection as a single persisted update. Returns whether
    * notification permission was actually granted (false if the user picked anything but the OS
    * denied permission — everything is silently kept off in that case). */
@@ -75,17 +78,19 @@ type NotificationsContextValue = Preferences & {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  const { coords, method } = usePrayerTimes();
+  const { coords, method, madhab } = usePrayerTimes();
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [loaded, setLoaded] = useState(false);
   const preferencesRef = useRef(preferences);
   const coordsRef = useRef(coords);
   const methodRef = useRef(method);
+  const madhabRef = useRef(madhab);
   useEffect(() => {
     preferencesRef.current = preferences;
     coordsRef.current = coords;
     methodRef.current = method;
-  }, [preferences, coords, method]);
+    madhabRef.current = madhab;
+  }, [preferences, coords, method, madhab]);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
@@ -94,7 +99,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setPreferences({
           ...DEFAULT_PREFERENCES,
           ...saved,
-          prayerNotifications: { ...DEFAULT_PRAYER_NOTIFICATIONS, ...saved.prayerNotifications },
+          prayerNotifications: {
+            ...DEFAULT_PRAYER_NOTIFICATIONS,
+            ...saved.prayerNotifications,
+          },
         });
       }
       setLoaded(true);
@@ -111,18 +119,21 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // stays fresh even after the app hasn't been opened for a day or more.
   useEffect(() => {
     if (!loaded || !coords || !method) return;
-    scheduleUpcomingPrayerNotifications(coords, method, preferences.prayerNotifications, {
+    scheduleUpcomingPrayerNotifications(coords, method, madhab, preferences.prayerNotifications, {
       dhuhrAsrDuaEnabled: preferences.dhuhrAsrDuaEnabled,
       fridayDuaEnabled: preferences.fridayDuaEnabled,
+      adhkarRemindersEnabled: preferences.adhkarRemindersEnabled,
     });
     scheduleWeMissYouReminder(WE_MISS_YOU_DAYS_AHEAD);
   }, [
     loaded,
     coords,
     method,
+    madhab,
     preferences.prayerNotifications,
     preferences.dhuhrAsrDuaEnabled,
     preferences.fridayDuaEnabled,
+    preferences.adhkarRemindersEnabled,
   ]);
 
   useEffect(() => {
@@ -130,14 +141,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       if (state !== 'active') return;
       const { current: currentCoords } = coordsRef;
       const { current: currentMethod } = methodRef;
+      const { current: currentMadhab } = madhabRef;
       if (!currentCoords || !currentMethod) return;
       scheduleUpcomingPrayerNotifications(
         currentCoords,
         currentMethod,
+        currentMadhab,
         preferencesRef.current.prayerNotifications,
         {
           dhuhrAsrDuaEnabled: preferencesRef.current.dhuhrAsrDuaEnabled,
           fridayDuaEnabled: preferencesRef.current.fridayDuaEnabled,
+          adhkarRemindersEnabled: preferencesRef.current.adhkarRemindersEnabled,
         },
       );
       scheduleWeMissYouReminder(WE_MISS_YOU_DAYS_AHEAD);
@@ -177,7 +191,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       if (enabled && !(await requestNotificationPermissionAsync())) return;
       persist({
         ...preferences,
-        prayerNotifications: { ...preferences.prayerNotifications, [prayer]: enabled },
+        prayerNotifications: {
+          ...preferences.prayerNotifications,
+          [prayer]: enabled,
+        },
       });
     },
     [persist, preferences],
@@ -226,6 +243,14 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     async (enabled: boolean) => {
       if (enabled && !(await requestNotificationPermissionAsync())) return;
       persist({ ...preferences, fridayDuaEnabled: enabled });
+    },
+    [persist, preferences],
+  );
+
+  const setAdhkarRemindersEnabled = useCallback(
+    async (enabled: boolean) => {
+      if (enabled && !(await requestNotificationPermissionAsync())) return;
+      persist({ ...preferences, adhkarRemindersEnabled: enabled });
     },
     [persist, preferences],
   );
@@ -279,8 +304,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         setJumuahMorningEnabled,
         setFridayBlessingsEnabled,
         setFridayDuaEnabled,
+        setAdhkarRemindersEnabled,
         completeOnboarding,
-      }}>
+      }}
+    >
       {children}
     </NotificationsContext.Provider>
   );

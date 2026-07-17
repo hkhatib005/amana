@@ -99,9 +99,9 @@ export default function QuranReaderScreen() {
   }, []);
 
   useEffect(() => {
-    setTabBarHidden(!chromeVisible);
+    setTabBarHidden(true);
     return () => setTabBarHidden(false);
-  }, [chromeVisible, setTabBarHidden]);
+  }, [setTabBarHidden]);
 
   const handlePageInfoChange = useCallback(
     (info: MushafPageInfo) => {
@@ -170,22 +170,6 @@ export default function QuranReaderScreen() {
               </View>
 
               <Pressable
-                onPress={() =>
-                  pagerHandleRef.current?.playFirstVerseOfCurrentPage()
-                }
-                hitSlop={8}
-              >
-                <SymbolView
-                  name={{
-                    ios: "play.circle",
-                    android: "play_circle",
-                    web: "play_circle",
-                  }}
-                  size={22}
-                />
-              </Pressable>
-
-              <Pressable
                 onPress={() => setModeMenuOpen((prev) => !prev)}
                 hitSlop={8}
               >
@@ -209,6 +193,29 @@ export default function QuranReaderScreen() {
             exiting={FadeOut.duration(120)}
           >
             <ThemedView type="backgroundElement" style={styles.modeMenu}>
+              <Pressable
+                style={styles.playRow}
+                onPress={() =>
+                  playbackState
+                    ? playbackState.playing
+                      ? pagerHandleRef.current?.pause()
+                      : pagerHandleRef.current?.play()
+                    : pagerHandleRef.current?.playFirstVerseOfCurrentPage()
+                }
+              >
+                <SymbolView
+                  name={{
+                    ios: playbackState?.playing ? "pause.circle.fill" : "play.circle.fill",
+                    android: playbackState?.playing ? "pause_circle" : "play_circle",
+                    web: playbackState?.playing ? "pause_circle" : "play_circle",
+                  }}
+                  size={22}
+                />
+                <ThemedText type="smallBold">
+                  {playbackState?.playing ? "Pause Recitation" : "Play Recitation"}
+                </ThemedText>
+              </Pressable>
+
               <View style={styles.modeMenuTabs}>
                 <Pressable
                   style={styles.modeMenuTab}
@@ -375,7 +382,8 @@ export default function QuranReaderScreen() {
           </Pressable>
         )}
 
-        {playbackState && (
+        {chromeVisible && playbackState && (
+          <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)}>
           <ThemedView type="backgroundElement" style={styles.playbackBar}>
             <Pressable
               onPress={() => pagerHandleRef.current?.stop()}
@@ -439,6 +447,7 @@ export default function QuranReaderScreen() {
               />
             </Pressable>
           </ThemedView>
+          </Animated.View>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -485,6 +494,13 @@ const styles = StyleSheet.create({
     maxHeight: 500,
     borderRadius: Spacing.three,
     padding: Spacing.two,
+  },
+  playRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.two,
   },
   reciterLabel: {
     paddingHorizontal: Spacing.two,
