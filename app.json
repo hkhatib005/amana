@@ -2,6 +2,7 @@
   "expo": {
     "name": "Amana",
     "slug": "amana",
+    "owner": "hkhatib005",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
@@ -9,7 +10,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.anonymous.islamicapp"
+      "bundleIdentifier": "com.hatemkhatib.amana",
+      "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +21,15 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.islamicapp"
+      "package": "com.anonymous.islamicapp",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
     },
     "web": {
       "output": "static",
@@ -112,6 +122,29 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ExpoWidgetsTarget",
+                  "bundleIdentifier": "com.hatemkhatib.amana.ExpoWidgetsTarget",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.hatemkhatib.amana"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "83b264bf-ddc0-4f89-8251-64d2266ae0e1"
+      }
     }
   }
 }
