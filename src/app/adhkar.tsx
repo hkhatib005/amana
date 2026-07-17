@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { EVENING_OPENER, MORNING_OPENER } from '@/constants/adhkar-openers';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { AdhkarVerse, getAdhkarVerses } from '@/lib/adhkar';
 import { isMorningAdhkarTime } from '@/lib/prayer-times';
 import { usePrayerTimes } from '@/providers/prayer-times-provider';
@@ -33,9 +34,7 @@ export default function AdhkarScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <ThemedText type="title" style={styles.title}>
-            {isMorning ? 'Morning Adhkar' : 'Evening Adhkar'}
-          </ThemedText>
+          <PageHeader title={isMorning ? 'Morning Adhkar' : 'Evening Adhkar'} />
 
           <ThemedView type="backgroundElement" style={styles.card}>
             <ThemedText style={styles.arabic}>{opener.arabic}</ThemedText>
@@ -75,12 +74,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
-    paddingBottom: Spacing.four,
+    paddingBottom: BottomTabInset + Spacing.four,
     gap: Spacing.four,
-  },
-  title: {
-    alignSelf: 'flex-start',
-    paddingTop: Spacing.three,
   },
   card: {
     alignSelf: 'stretch',

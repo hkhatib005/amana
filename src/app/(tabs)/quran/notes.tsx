@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -33,9 +34,7 @@ export default function QuranNotesScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ThemedText type="title" style={styles.title}>
-          Notes
-        </ThemedText>
+        <PageHeader title="Notes" />
 
         {notes.length === 0 && (
           <ThemedText type="small" themeColor="textSecondary">
@@ -71,11 +70,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
-  },
-  title: {
-    alignSelf: 'flex-start',
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
+    gap: Spacing.two,
   },
   listContent: {
     alignSelf: 'stretch',

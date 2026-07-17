@@ -1,4 +1,5 @@
-import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
+import { Asset } from 'expo-asset';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import {
   forwardRef,
@@ -64,6 +65,7 @@ type MushafPagerProps = {
   chapters: QuranChapter[];
   showTranslation: boolean;
   reciterId: number;
+  reciterName?: string;
   textSizeScale: number;
   colorScheme: 'system' | 'light' | 'dark';
   onPageInfoChange: (info: MushafPageInfo) => void;
@@ -221,6 +223,7 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     chapters,
     showTranslation,
     reciterId,
+    reciterName,
     textSizeScale,
     colorScheme,
     onPageInfoChange,
@@ -299,6 +302,74 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
       setActiveVerseKey(null);
     }
   }, [playlistStatus.didJustFinish, playlistStatus.currentIndex]);
+
+  // Now Playing / lock screen metadata. `useAudioPlaylist` has no lock screen API of its
+  // own, so a dedicated metadata-only player is kept active for lock screen controls and
+  // mirrored to/from the real playlist's play state.
+  const nowPlayingPlayer = useAudioPlayer();
+  const nowPlayingStatus = useAudioPlayerStatus(nowPlayingPlayer);
+  const [artworkUri, setArtworkUri] = useState<string | null>(null);
+  const isLockScreenActiveRef = useRef(false);
+
+  useEffect(() => {
+    Asset.fromModule(require('@/assets/images/icon.png'))
+      .downloadAsync()
+      .then((asset) => setArtworkUri(asset.localUri ?? null))
+      .catch(() => {});
+  }, []);
+
+  const activeChapterName = useMemo(() => {
+    if (!activeVerseKey) return null;
+    const chapterId = Number(activeVerseKey.split(':')[0]);
+    return chapters.find((c) => c.id === chapterId)?.nameSimple ?? null;
+  }, [activeVerseKey, chapters]);
+
+  useEffect(() => {
+    if (!activeChapterName) {
+      if (isLockScreenActiveRef.current) {
+        nowPlayingPlayer.clearLockScreenControls();
+        isLockScreenActiveRef.current = false;
+      }
+      return;
+    }
+    const metadata = { title: activeChapterName, artist: reciterName, artworkUrl: artworkUri ?? undefined };
+    if (!isLockScreenActiveRef.current) {
+      nowPlayingPlayer.setActiveForLockScreen(true, metadata, { showSeekForward: false, showSeekBackward: false });
+      isLockScreenActiveRef.current = true;
+    } else {
+      nowPlayingPlayer.updateLockScreenMetadata(metadata);
+    }
+  }, [activeChapterName, reciterName, artworkUri, nowPlayingPlayer]);
+
+  // Keep the metadata player's play/pause state mirroring the real playlist, so the lock
+  // screen's icon reflects actual playback.
+  useEffect(() => {
+    if (!isLockScreenActiveRef.current) return;
+    if (playlistStatus.playing) nowPlayingPlayer.play();
+    else nowPlayingPlayer.pause();
+  }, [playlistStatus.playing, nowPlayingPlayer]);
+
+  // Best-effort: a lock screen play/pause tap is a remote command expo-audio applies
+  // natively with no JS event, so relay any resulting divergence back to the real playlist.
+  useEffect(() => {
+    if (!isLockScreenActiveRef.current) return;
+    if (nowPlayingStatus.playing !== playlistStatus.playing) {
+      if (nowPlayingStatus.playing) playlist.play();
+      else playlist.pause();
+    }
+  }, [nowPlayingStatus.playing, playlistStatus.playing, playlist]);
+
+  useEffect(
+    () => () => {
+      if (!isLockScreenActiveRef.current) return;
+      try {
+        nowPlayingPlayer.clearLockScreenControls();
+      } catch {
+        // The native player may already be torn down by the time this runs.
+      }
+    },
+    [nowPlayingPlayer],
+  );
 
   const loadPage = useCallback(
     (pageNumber: number) => {

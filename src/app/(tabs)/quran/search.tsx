@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { FlatList, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -32,9 +33,7 @@ export default function QuranSearchScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ThemedText type="title" style={styles.title}>
-          Search
-        </ThemedText>
+        <PageHeader title="Search" />
 
         <TextInput
           value={query}
@@ -81,11 +80,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.four,
-  },
-  title: {
-    alignSelf: 'flex-start',
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.two,
+    gap: Spacing.two,
   },
   input: {
     alignSelf: 'stretch',

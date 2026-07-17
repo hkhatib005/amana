@@ -2,6 +2,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -34,9 +35,7 @@ export default function TrackerScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title" style={styles.title}>
-          Tracker
-        </ThemedText>
+        <PageHeader title="Tracker" />
 
         {!loading && (
           <>
@@ -123,10 +122,6 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
     paddingBottom: BottomTabInset + Spacing.three,
     maxWidth: MaxContentWidth,
-  },
-  title: {
-    alignSelf: 'flex-start',
-    paddingTop: Spacing.three,
   },
   streakCard: {
     alignSelf: 'stretch',

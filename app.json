@@ -42,7 +42,64 @@
         }
       ],
       "expo-notifications",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "NextPrayerWidget",
+              "displayName": "Next Prayer",
+              "description": "Shows the current and next prayer with its time.",
+              "supportedFamilies": [
+                "systemSmall",
+                "accessoryCircular"
+              ]
+            },
+            {
+              "name": "PrayerTimesWidget",
+              "displayName": "Prayer Times",
+              "description": "Today's five prayer times, with the current one highlighted.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "QiblaWidget",
+              "displayName": "Qibla",
+              "description": "The Qibla direction and distance to the Kaaba from your location.",
+              "supportedFamilies": [
+                "systemSmall"
+              ]
+            },
+            {
+              "name": "DailyVerseWidget",
+              "displayName": "Daily Verse",
+              "description": "A new Qur'an verse each day.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "AdhkarWidget",
+              "displayName": "Adhkar",
+              "description": "The morning or evening adhkar opener.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "TrackerWidget",
+              "displayName": "Prayer Tracker",
+              "description": "Today's completed prayers and your streak.",
+              "supportedFamilies": [
+                "systemSmall"
+              ]
+            }
+          ]
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

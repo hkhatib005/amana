@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageHeader } from '@/components/page-header';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -34,9 +35,7 @@ export default function SettingsScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        <ThemedText type="title" style={styles.title}>
-          Settings
-        </ThemedText>
+        <PageHeader title="Settings" />
 
         <ThemedText type="smallBold">Notifications</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
@@ -122,9 +121,6 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingBottom: BottomTabInset + Spacing.three,
     maxWidth: MaxContentWidth,
-  },
-  title: {
-    paddingTop: Spacing.three,
   },
   hint: {
     marginTop: -Spacing.two,

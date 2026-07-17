@@ -254,6 +254,7 @@ export default function QuranReaderScreen() {
               chapters={chapters}
               showTranslation={showTranslation}
               reciterId={reciterId}
+              reciterName={reciters.find((r) => r.id === reciterId)?.name}
               textSizeScale={textSizeScale}
               colorScheme={colorScheme}
               onPageInfoChange={handlePageInfoChange}

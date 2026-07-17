@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { OnboardingScreen } from '@/components/onboarding-screen';
+import { WidgetSync } from '@/components/widget-sync';
 import { configureNotificationHandler } from '@/lib/notifications';
 import { getHasCompletedOnboarding } from '@/lib/onboarding';
 import { NotificationsProvider } from '@/providers/notifications-provider';
@@ -34,6 +35,7 @@ export default function RootLayout() {
       <PrayerTimesProvider>
         <NotificationsProvider>
           <PrayerTrackerProvider>
+            <WidgetSync />
             <TabBarVisibilityProvider>
               {onboardingComplete === false ? (
                 <OnboardingScreen onDone={() => setOnboardingComplete(true)} />

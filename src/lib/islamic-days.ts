@@ -3,6 +3,7 @@ import { gregorianToHijri, hijriToGregorian } from '@/lib/hijri-date';
 
 export type UpcomingIslamicDay = {
   name: string;
+  emoji: string;
   date: Date;
   daysAway: number;
 };
@@ -23,6 +24,6 @@ export function getUpcomingIslamicDays(today: Date = new Date()): UpcomingIslami
       date = startOfDay(hijriToGregorian(currentHijriYear + 1, event.hijriMonth, event.hijriDay));
     }
     const daysAway = Math.round((date.getTime() - todayStart.getTime()) / 86400000);
-    return { name: event.name, date, daysAway };
+    return { name: event.name, emoji: event.emoji, date, daysAway };
   }).sort((a, b) => a.date.getTime() - b.date.getTime());
 }
