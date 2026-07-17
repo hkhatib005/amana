@@ -4,13 +4,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Line, Polygon } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { BrandBlue, Spacing } from '@/constants/theme';
 import { useDailyVerse } from '@/hooks/use-daily-verse';
 import { isDayComplete, TRACKED_PRAYERS, TrackedPrayer } from '@/lib/prayer-tracker';
 import { usePrayerTracker } from '@/providers/prayer-tracker-provider';
 
 const VERSE_GOLD = '#D4A017';
-const TRACKER_GREEN = '#1B5E3A';
+const TRACKER_GREEN = BrandBlue;
 
 const PRAYER_LETTERS: Record<TrackedPrayer, string> = {
   fajr: 'F',
@@ -73,6 +73,10 @@ export function VerseTrackerDiagonal() {
       </View>
 
       <View style={styles.trackerPane}>
+        <ThemedText type="smallBold" style={styles.overlayText}>
+          Salah Tracker
+        </ThemedText>
+
         <View style={styles.prayerRow}>
           {TRACKED_PRAYERS.map((prayer) => {
             const checked = todayCompleted.includes(prayer);

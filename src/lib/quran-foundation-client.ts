@@ -1,4 +1,5 @@
 import { createServerClient } from '@quranjs/api/server';
+import type { VerseKey } from '@quranjs/api';
 
 /**
  * Pre-Production credentials for now (see .env.local). Swap to the Production
@@ -37,7 +38,12 @@ export async function getVerseAudioUrl(
   const cacheKey = `${reciterId}:${verseKey}`;
   if (audioUrlCache.has(cacheKey)) return audioUrlCache.get(cacheKey)!;
   try {
-    const { audioFiles } = await quranClient.audio.findVerseRecitationsByKey(verseKey, reciterId);
+    // VerseKey is a per-chapter literal union derived from compile-time data; ours come from
+    // our own fetched page data at runtime, so they're valid but not literal-checkable here.
+    const { audioFiles } = await quranClient.audio.findVerseRecitationsByKey(
+      verseKey as VerseKey,
+      String(reciterId),
+    );
     const url = audioFiles[0]?.audioUrl ?? null;
     audioUrlCache.set(cacheKey, url);
     return url;

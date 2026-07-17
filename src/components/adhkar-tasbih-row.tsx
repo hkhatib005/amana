@@ -9,7 +9,7 @@ const GOLD = '#D4A017';
 
 export function AdhkarTasbihRow() {
   const scheme = useColorScheme();
-  const tint = scheme === 'dark' ? 'rgba(46,125,50,0.16)' : 'rgba(46,125,50,0.08)';
+  const tint = scheme === 'dark' ? 'rgba(0,122,255,0.16)' : 'rgba(0,122,255,0.08)';
 
   return (
     <View style={[styles.row, { backgroundColor: tint }]}>

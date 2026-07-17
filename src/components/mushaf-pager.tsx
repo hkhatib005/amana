@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { useFonts } from 'expo-font';
 import {
   forwardRef,
@@ -12,21 +12,30 @@ import {
 } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
 
 import { SurahBanner } from '@/components/surah-banner';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useTheme } from '@/hooks/use-theme';
 import { toArabicIndicDigits } from '@/lib/arabic-numerals';
 import { QuranChapter } from '@/lib/quran-chapters';
 import { getPageVerses, QuranPageVerse, TOTAL_MUSHAF_PAGES } from '@/lib/quran-page-data';
 import { getVerseAudioUrls } from '@/lib/quran-foundation-client';
+import { isBookmarked, toggleBookmark } from '@/lib/quran-bookmarks';
+import { getNoteForVerse, setNote } from '@/lib/quran-notes';
 
 const QURAN_FONT_FAMILY = 'UthmanicHafs';
 
@@ -82,7 +91,7 @@ function MushafPageContent({
   loadingVerseKey,
   textSizeScale,
   colorScheme,
-  onVersePress,
+  onVerseLongPress,
 }: {
   pageNumber: number;
   verses: QuranPageVerse[] | undefined;
@@ -93,7 +102,7 @@ function MushafPageContent({
   loadingVerseKey: string | null;
   textSizeScale: number;
   colorScheme: 'system' | 'light' | 'dark';
-  onVersePress: (verseKey: string) => void;
+  onVerseLongPress: (verse: QuranPageVerse) => void;
 }) {
   const theme = useManuscriptColors(colorScheme);
   const { width, height } = useWindowDimensions();
@@ -170,7 +179,7 @@ function MushafPageContent({
             segment.verses.map((verse) => (
               <View key={verse.key} style={styles.verseBlock}>
                 <Text
-                  onPress={() => onVersePress(verse.key)}
+                  onLongPress={() => onVerseLongPress(verse)}
                   style={[
                     styles.flowingText,
                     flowingTextSize,
@@ -193,7 +202,7 @@ function MushafPageContent({
               {segment.verses.map((verse) => (
                 <Text
                   key={verse.key}
-                  onPress={() => onVersePress(verse.key)}
+                  onLongPress={() => onVerseLongPress(verse)}
                   style={[
                     verse.key === activeVerseKey && { color: MANUSCRIPT_ACCENT },
                     verse.key === loadingVerseKey && styles.verseLoading,
@@ -238,6 +247,7 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   const [fontsLoaded] = useFonts({ [QURAN_FONT_FAMILY]: require('@/assets/fonts/UthmanicHafs.ttf') });
   const fontFamily = fontsLoaded ? QURAN_FONT_FAMILY : undefined;
   const manuscript = useManuscriptColors(colorScheme);
+  const theme = useTheme();
 
   const playlist = useAudioPlaylist({ loop: 'none' });
   const playlistStatus = useAudioPlaylistStatus(playlist);
@@ -245,6 +255,50 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   const playlistThroughPageRef = useRef<number>(0);
   const [activeVerseKey, setActiveVerseKey] = useState<string | null>(null);
   const [loadingVerseKey, setLoadingVerseKey] = useState<string | null>(null);
+  const [noteModalVerse, setNoteModalVerse] = useState<QuranPageVerse | null>(null);
+  const [noteText, setNoteText] = useState('');
+
+  const handleVerseLongPress = useCallback(
+    async (verse: QuranPageVerse) => {
+      const chapterName = chapters.find((c) => c.id === verse.chapterId)?.nameSimple ?? '';
+      const [bookmarked, existingNote] = await Promise.all([
+        isBookmarked(verse.key),
+        getNoteForVerse(verse.key),
+      ]);
+      Alert.alert(`${chapterName} ${verse.verseNumber}`, undefined, [
+        {
+          text: bookmarked ? 'Remove Bookmark' : 'Add Bookmark',
+          onPress: () =>
+            toggleBookmark({
+              verseKey: verse.key,
+              chapterName,
+              arabic: verse.arabic,
+              translation: verse.translation,
+            }),
+        },
+        {
+          text: existingNote ? 'Edit Note' : 'Add Note',
+          onPress: () => {
+            setNoteText(existingNote ?? '');
+            setNoteModalVerse(verse);
+          },
+        },
+        {
+          text: 'Show Translation',
+          onPress: () => Alert.alert(`${chapterName} ${verse.verseNumber}`, verse.translation),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    },
+    [chapters],
+  );
+
+  const saveNote = useCallback(async () => {
+    if (!noteModalVerse) return;
+    const chapterName = chapters.find((c) => c.id === noteModalVerse.chapterId)?.nameSimple ?? '';
+    await setNote(noteModalVerse.key, chapterName, noteText);
+    setNoteModalVerse(null);
+  }, [noteModalVerse, noteText, chapters]);
 
   useEffect(() => {
     setAudioModeAsync({
@@ -307,7 +361,6 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   // own, so a dedicated metadata-only player is kept active for lock screen controls and
   // mirrored to/from the real playlist's play state.
   const nowPlayingPlayer = useAudioPlayer();
-  const nowPlayingStatus = useAudioPlayerStatus(nowPlayingPlayer);
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
   const isLockScreenActiveRef = useRef(false);
 
@@ -348,16 +401,6 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     if (playlistStatus.playing) nowPlayingPlayer.play();
     else nowPlayingPlayer.pause();
   }, [playlistStatus.playing, nowPlayingPlayer]);
-
-  // Best-effort: a lock screen play/pause tap is a remote command expo-audio applies
-  // natively with no JS event, so relay any resulting divergence back to the real playlist.
-  useEffect(() => {
-    if (!isLockScreenActiveRef.current) return;
-    if (nowPlayingStatus.playing !== playlistStatus.playing) {
-      if (nowPlayingStatus.playing) playlist.play();
-      else playlist.pause();
-    }
-  }, [nowPlayingStatus.playing, playlistStatus.playing, playlist]);
 
   useEffect(
     () => () => {
@@ -513,6 +556,7 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   );
 
   return (
+    <>
     <PagerView
       ref={pagerRef}
       style={[styles.pager, { backgroundColor: manuscript.background }]}
@@ -536,13 +580,41 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
                 loadingVerseKey={loadingVerseKey}
                 textSizeScale={textSizeScale}
                 colorScheme={colorScheme}
-                onVersePress={playVerse}
+                onVerseLongPress={handleVerseLongPress}
               />
             )}
           </View>
         );
       })}
     </PagerView>
+
+    <Modal visible={noteModalVerse !== null} transparent animationType="fade" onRequestClose={() => setNoteModalVerse(null)}>
+      <View style={styles.noteModalBackdrop}>
+        <ThemedView type="backgroundElement" style={styles.noteModalCard}>
+          <ThemedText type="smallBold">
+            Note · {chapters.find((c) => c.id === noteModalVerse?.chapterId)?.nameSimple} {noteModalVerse?.verseNumber}
+          </ThemedText>
+          <TextInput
+            value={noteText}
+            onChangeText={setNoteText}
+            multiline
+            autoFocus
+            placeholder="Write a note for this verse…"
+            placeholderTextColor={theme.textSecondary}
+            style={[styles.noteInput, { color: theme.text, backgroundColor: theme.background }]}
+          />
+          <View style={styles.noteModalActions}>
+            <Pressable onPress={() => setNoteModalVerse(null)} style={styles.noteModalButton}>
+              <ThemedText type="small">Cancel</ThemedText>
+            </Pressable>
+            <Pressable onPress={saveNote} style={styles.noteModalButton}>
+              <ThemedText type="smallBold">Save</ThemedText>
+            </Pressable>
+          </View>
+        </ThemedView>
+      </View>
+    </Modal>
+    </>
   );
 });
 
@@ -590,5 +662,35 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'left',
     marginTop: 8,
+  },
+  noteModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.five,
+  },
+  noteModalCard: {
+    alignSelf: 'stretch',
+    borderRadius: Spacing.four,
+    padding: Spacing.four,
+    gap: Spacing.three,
+  },
+  noteInput: {
+    minHeight: 100,
+    maxHeight: 220,
+    fontSize: 15,
+    borderRadius: Spacing.two,
+    padding: Spacing.two,
+    textAlignVertical: 'top',
+  },
+  noteModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing.four,
+  },
+  noteModalButton: {
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
 });

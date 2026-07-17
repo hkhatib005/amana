@@ -9,7 +9,7 @@ export type NearbyMasjid = {
   address: string | null;
 };
 
-const SEARCH_RADIUS_METERS = 8000;
+const SEARCH_RADIUS_METERS = 15000;
 const OVERPASS_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 const EARTH_RADIUS_KM = 6371;
 
@@ -23,7 +23,8 @@ type OverpassElement = {
 };
 
 export async function getNearbyMasjids(latitude: number, longitude: number): Promise<NearbyMasjid[]> {
-  const query = `[out:json][timeout:25];(node["amenity"="place_of_worship"]["religion"="muslim"](around:${SEARCH_RADIUS_METERS},${latitude},${longitude});way["amenity"="place_of_worship"]["religion"="muslim"](around:${SEARCH_RADIUS_METERS},${latitude},${longitude}););out center 30;`;
+  const around = `around:${SEARCH_RADIUS_METERS},${latitude},${longitude}`;
+  const query = `[out:json][timeout:25];nwr["amenity"="place_of_worship"]["religion"="muslim"](${around});out center 50;`;
 
   const response = await fetch(OVERPASS_ENDPOINT, {
     method: 'POST',
@@ -37,10 +38,13 @@ export async function getNearbyMasjids(latitude: number, longitude: number): Pro
 
   const data: { elements: OverpassElement[] } = await response.json();
 
-  return data.elements
-    .map((element) => toNearbyMasjid(element, latitude, longitude))
-    .filter((masjid): masjid is NearbyMasjid => masjid !== null)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+  const byId = new Map<string, NearbyMasjid>();
+  for (const element of data.elements) {
+    const masjid = toNearbyMasjid(element, latitude, longitude);
+    if (masjid) byId.set(masjid.id, masjid);
+  }
+
+  return [...byId.values()].sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
 function toNearbyMasjid(element: OverpassElement, latitude: number, longitude: number): NearbyMasjid | null {

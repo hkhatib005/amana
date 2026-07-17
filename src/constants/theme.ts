@@ -26,6 +26,12 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/** The app icon's blue, used as the brand accent across the app. */
+export const BrandBlue = '#007AFF';
+
+/** The Qur'an-verse gold, used as the app's secondary brand accent. */
+export const BrandGold = '#D4A017';
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

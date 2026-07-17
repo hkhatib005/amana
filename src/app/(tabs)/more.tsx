@@ -1,13 +1,13 @@
 import { Image } from 'expo-image';
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { SFSymbol } from 'sf-symbols-typescript';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, BrandGold, MaxContentWidth, Spacing } from '@/constants/theme';
 
 const TILES: {
   href: '/duas' | '/qibla' | '/islamic-days' | '/masjid' | '/settings' | '/quran' | '/tracker';
@@ -22,6 +22,9 @@ const TILES: {
   { href: '/masjid', label: 'Nearby Masjid', sf: 'mappin.and.ellipse' },
   { href: '/settings', label: 'Settings', sf: 'gearshape.fill' },
 ];
+
+const FEEDBACK_EMAIL_URL =
+  'mailto:hkhatib005@gmail.com?subject=' + encodeURIComponent('Amana-Muslim app feedback');
 
 export default function MoreScreen() {
   return (
@@ -53,6 +56,19 @@ export default function MoreScreen() {
             </Link>
           ))}
         </View>
+
+        <Pressable
+          onPress={() => Linking.openURL(FEEDBACK_EMAIL_URL).catch(() => {})}
+          style={styles.feedbackButton}>
+          <SymbolView
+            name={{ ios: 'envelope.fill', android: 'mail', web: 'mail' }}
+            tintColor="#ffffff"
+            size={18}
+          />
+          <ThemedText type="smallBold" style={styles.feedbackLabel}>
+            Send Feedback
+          </ThemedText>
+        </Pressable>
       </SafeAreaView>
     </View>
   );
@@ -105,5 +121,20 @@ const styles = StyleSheet.create({
   tileLabel: {
     color: '#ffffff',
     textAlign: 'center',
+  },
+  feedbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    maxWidth: MaxContentWidth,
+    marginTop: 'auto',
+    gap: Spacing.two,
+    backgroundColor: BrandGold,
+    borderRadius: Spacing.five,
+    paddingVertical: Spacing.three,
+  },
+  feedbackLabel: {
+    color: '#ffffff',
   },
 });

@@ -1,9 +1,10 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import * as ScreenOrientation from 'expo-screen-orientation';
-import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { SymbolView } from "expo-symbols";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   MushafPager,
@@ -11,26 +12,30 @@ import {
   MushafPagerHandle,
   PlaybackState,
   useManuscriptColors,
-} from '@/components/mushaf-pager';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
-import { getQuranChapters, QuranChapter } from '@/lib/quran-chapters';
+} from "@/components/mushaf-pager";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { MaxContentWidth, Spacing } from "@/constants/theme";
+import { getQuranChapters, QuranChapter } from "@/lib/quran-chapters";
 import {
   DEFAULT_READER_COLOR_SCHEME,
   getReaderColorScheme,
   READER_COLOR_SCHEME_OPTIONS,
   setReaderColorScheme as persistReaderColorScheme,
-} from '@/lib/quran-color-scheme';
-import { DEFAULT_RECITER_ID, getReciters, Reciter } from '@/lib/quran-foundation-client';
-import { recordRecentRead } from '@/lib/quran-recent';
+} from "@/lib/quran-color-scheme";
+import {
+  DEFAULT_RECITER_ID,
+  getReciters,
+  Reciter,
+} from "@/lib/quran-foundation-client";
+import { recordRecentRead } from "@/lib/quran-recent";
 import {
   DEFAULT_TEXT_SIZE_SCALE,
   getTextSizeScale,
   setTextSizeScale as persistTextSizeScale,
   TEXT_SIZE_OPTIONS,
-} from '@/lib/quran-text-size';
-import { useTabBarVisibility } from '@/providers/tab-bar-visibility-provider';
+} from "@/lib/quran-text-size";
+import { useTabBarVisibility } from "@/providers/tab-bar-visibility-provider";
 
 const PLAYBACK_RATES = [1, 1.25, 0.75];
 
@@ -87,7 +92,9 @@ export default function QuranReaderScreen() {
   useEffect(() => {
     ScreenOrientation.unlockAsync();
     return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT_UP,
+      );
     };
   }, []);
 
@@ -112,7 +119,9 @@ export default function QuranReaderScreen() {
     [chapters],
   );
 
-  const currentChapterName = chapters?.find((c) => c.id === pageInfo?.chapterId)?.nameSimple;
+  const currentChapterName = chapters?.find(
+    (c) => c.id === pageInfo?.chapterId,
+  )?.nameSimple;
 
   function toggleChrome() {
     setModeMenuOpen(false);
@@ -120,130 +129,233 @@ export default function QuranReaderScreen() {
   }
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: manuscript.background }]}>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <ThemedView
+      style={[styles.container, { backgroundColor: manuscript.background }]}
+    >
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         <View style={styles.topRow}>
           <Pressable onPress={() => router.back()} hitSlop={8}>
             <SymbolView
-              name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+              name={{
+                ios: "chevron.left",
+                android: "arrow_back",
+                web: "arrow_back",
+              }}
               size={20}
             />
           </Pressable>
 
           {chromeVisible && (
-            <>
+            <Animated.View
+              style={styles.chromeGroup}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+            >
               <View style={styles.headerText}>
-                <ThemedText type="smallBold" numberOfLines={1} style={{ color: manuscript.text }}>
-                  {currentChapterName ?? ' '}
+                <ThemedText
+                  type="smallBold"
+                  numberOfLines={1}
+                  style={{ color: manuscript.text }}
+                >
+                  {currentChapterName ?? " "}
                 </ThemedText>
-                <ThemedText type="small" style={{ color: manuscript.textSecondary }}>
-                  {pageInfo ? `Page ${pageInfo.pageNumber} · Juz' ${pageInfo.juzNumber}` : ' '}
+                <ThemedText
+                  type="small"
+                  style={{ color: manuscript.textSecondary }}
+                >
+                  {pageInfo
+                    ? `Page ${pageInfo.pageNumber} · Juz' ${pageInfo.juzNumber}`
+                    : " "}
                 </ThemedText>
               </View>
 
               <Pressable
-                onPress={() => pagerHandleRef.current?.playFirstVerseOfCurrentPage()}
-                hitSlop={8}>
+                onPress={() =>
+                  pagerHandleRef.current?.playFirstVerseOfCurrentPage()
+                }
+                hitSlop={8}
+              >
                 <SymbolView
-                  name={{ ios: 'play.circle', android: 'play_circle', web: 'play_circle' }}
+                  name={{
+                    ios: "play.circle",
+                    android: "play_circle",
+                    web: "play_circle",
+                  }}
                   size={22}
                 />
               </Pressable>
 
-              <Pressable onPress={() => setModeMenuOpen((prev) => !prev)} hitSlop={8}>
+              <Pressable
+                onPress={() => setModeMenuOpen((prev) => !prev)}
+                hitSlop={8}
+              >
                 <SymbolView
-                  name={{ ios: 'ellipsis.circle', android: 'more_horiz', web: 'more_horiz' }}
+                  name={{
+                    ios: "ellipsis.circle",
+                    android: "more_horiz",
+                    web: "more_horiz",
+                  }}
                   size={22}
                 />
               </Pressable>
-            </>
+            </Animated.View>
           )}
         </View>
 
         {chromeVisible && modeMenuOpen && (
-          <ThemedView type="backgroundElement" style={styles.modeMenu}>
-            <View style={styles.modeMenuTabs}>
-              <Pressable style={styles.modeMenuTab} onPress={() => setShowTranslation(false)}>
-                <ThemedView
-                  type={!showTranslation ? 'backgroundSelected' : 'backgroundElement'}
-                  style={styles.modeMenuTabInner}>
-                  <ThemedText type={!showTranslation ? 'smallBold' : 'small'}>Arabic</ThemedText>
-                </ThemedView>
-              </Pressable>
-              <Pressable style={styles.modeMenuTab} onPress={() => setShowTranslation(true)}>
-                <ThemedView
-                  type={showTranslation ? 'backgroundSelected' : 'backgroundElement'}
-                  style={styles.modeMenuTabInner}>
-                  <ThemedText type={showTranslation ? 'smallBold' : 'small'}>
-                    Translation
+          <Animated.View
+            style={styles.modeMenuWrap}
+            entering={FadeIn.duration(150)}
+            exiting={FadeOut.duration(120)}
+          >
+            <ThemedView type="backgroundElement" style={styles.modeMenu}>
+              <View style={styles.modeMenuTabs}>
+                <Pressable
+                  style={styles.modeMenuTab}
+                  onPress={() => setShowTranslation(false)}
+                >
+                  <ThemedView
+                    type={
+                      !showTranslation
+                        ? "backgroundSelected"
+                        : "backgroundElement"
+                    }
+                    style={styles.modeMenuTabInner}
+                  >
+                    <ThemedText type={!showTranslation ? "smallBold" : "small"}>
+                      Arabic
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+                <Pressable
+                  style={styles.modeMenuTab}
+                  onPress={() => setShowTranslation(true)}
+                >
+                  <ThemedView
+                    type={
+                      showTranslation
+                        ? "backgroundSelected"
+                        : "backgroundElement"
+                    }
+                    style={styles.modeMenuTabInner}
+                  >
+                    <ThemedText type={showTranslation ? "smallBold" : "small"}>
+                      Translation
+                    </ThemedText>
+                  </ThemedView>
+                </Pressable>
+              </View>
+
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={styles.reciterLabel}
+              >
+                Appearance
+              </ThemedText>
+              <View style={styles.textSizeRow}>
+                {READER_COLOR_SCHEME_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option.value}
+                    style={styles.textSizeButton}
+                    onPress={() => chooseColorScheme(option.value)}
+                  >
+                    <ThemedView
+                      type={
+                        option.value === colorScheme
+                          ? "backgroundSelected"
+                          : "backgroundElement"
+                      }
+                      style={styles.textSizeButtonInner}
+                    >
+                      <ThemedText
+                        type={
+                          option.value === colorScheme ? "smallBold" : "small"
+                        }
+                      >
+                        {option.label}
+                      </ThemedText>
+                    </ThemedView>
+                  </Pressable>
+                ))}
+              </View>
+
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={styles.reciterLabel}
+              >
+                Text Size
+              </ThemedText>
+              <View style={styles.textSizeRow}>
+                {TEXT_SIZE_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option.label}
+                    style={styles.textSizeButton}
+                    onPress={() => chooseTextSizeScale(option.scale)}
+                  >
+                    <ThemedView
+                      type={
+                        option.scale === textSizeScale
+                          ? "backgroundSelected"
+                          : "backgroundElement"
+                      }
+                      style={styles.textSizeButtonInner}
+                    >
+                      <ThemedText
+                        type={
+                          option.scale === textSizeScale ? "smallBold" : "small"
+                        }
+                        style={{ fontSize: 13 + option.scale * 4 }}
+                      >
+                        A
+                      </ThemedText>
+                    </ThemedView>
+                  </Pressable>
+                ))}
+              </View>
+
+              {reciters.length > 0 && (
+                <>
+                  <ThemedText
+                    type="small"
+                    themeColor="textSecondary"
+                    style={styles.reciterLabel}
+                  >
+                    Reciter
                   </ThemedText>
-                </ThemedView>
-              </Pressable>
-            </View>
-
-            <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
-              Appearance
-            </ThemedText>
-            <View style={styles.textSizeRow}>
-              {READER_COLOR_SCHEME_OPTIONS.map((option) => (
-                <Pressable
-                  key={option.value}
-                  style={styles.textSizeButton}
-                  onPress={() => chooseColorScheme(option.value)}>
-                  <ThemedView
-                    type={option.value === colorScheme ? 'backgroundSelected' : 'backgroundElement'}
-                    style={styles.textSizeButtonInner}>
-                    <ThemedText type={option.value === colorScheme ? 'smallBold' : 'small'}>
-                      {option.label}
-                    </ThemedText>
-                  </ThemedView>
-                </Pressable>
-              ))}
-            </View>
-
-            <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
-              Text Size
-            </ThemedText>
-            <View style={styles.textSizeRow}>
-              {TEXT_SIZE_OPTIONS.map((option) => (
-                <Pressable
-                  key={option.label}
-                  style={styles.textSizeButton}
-                  onPress={() => chooseTextSizeScale(option.scale)}>
-                  <ThemedView
-                    type={option.scale === textSizeScale ? 'backgroundSelected' : 'backgroundElement'}
-                    style={styles.textSizeButtonInner}>
-                    <ThemedText
-                      type={option.scale === textSizeScale ? 'smallBold' : 'small'}
-                      style={{ fontSize: 13 + option.scale * 4 }}>
-                      A
-                    </ThemedText>
-                  </ThemedView>
-                </Pressable>
-              ))}
-            </View>
-
-            {reciters.length > 0 && (
-              <>
-                <ThemedText type="small" themeColor="textSecondary" style={styles.reciterLabel}>
-                  Reciter
-                </ThemedText>
-                <ScrollView style={styles.reciterList} showsVerticalScrollIndicator={false}>
-                  {reciters.map((reciter) => (
-                    <Pressable key={reciter.id} onPress={() => setReciterId(reciter.id)}>
-                      <ThemedView
-                        type={reciter.id === reciterId ? 'backgroundSelected' : 'backgroundElement'}
-                        style={styles.reciterRow}>
-                        <ThemedText type={reciter.id === reciterId ? 'smallBold' : 'small'}>
-                          {reciter.name}
-                        </ThemedText>
-                      </ThemedView>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </>
-            )}
-          </ThemedView>
+                  <ScrollView
+                    style={styles.reciterList}
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {reciters.map((reciter) => (
+                      <Pressable
+                        key={reciter.id}
+                        onPress={() => setReciterId(reciter.id)}
+                      >
+                        <ThemedView
+                          type={
+                            reciter.id === reciterId
+                              ? "backgroundSelected"
+                              : "backgroundElement"
+                          }
+                          style={styles.reciterRow}
+                        >
+                          <ThemedText
+                            type={
+                              reciter.id === reciterId ? "smallBold" : "small"
+                            }
+                          >
+                            {reciter.name}
+                          </ThemedText>
+                        </ThemedView>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
+            </ThemedView>
+          </Animated.View>
         )}
 
         {chapters && (
@@ -265,45 +377,69 @@ export default function QuranReaderScreen() {
 
         {playbackState && (
           <ThemedView type="backgroundElement" style={styles.playbackBar}>
-            <Pressable onPress={() => pagerHandleRef.current?.stop()} hitSlop={8}>
-              <SymbolView name={{ ios: 'stop.fill', android: 'stop', web: 'stop' }} size={18} />
+            <Pressable
+              onPress={() => pagerHandleRef.current?.stop()}
+              hitSlop={8}
+            >
+              <SymbolView
+                name={{ ios: "stop.fill", android: "stop", web: "stop" }}
+                size={18}
+              />
             </Pressable>
 
             <Pressable onPress={cyclePlaybackRate} hitSlop={8}>
-              <ThemedText type="smallBold">{playbackState.playbackRate}x</ThemedText>
+              <ThemedText type="smallBold">
+                {playbackState.playbackRate}x
+              </ThemedText>
             </Pressable>
 
-            <Pressable onPress={() => pagerHandleRef.current?.previous()} hitSlop={8}>
+            <Pressable
+              onPress={() => pagerHandleRef.current?.previous()}
+              hitSlop={8}
+            >
               <SymbolView
-                name={{ ios: 'backward.fill', android: 'skip_previous', web: 'skip_previous' }}
+                name={{
+                  ios: "backward.fill",
+                  android: "skip_previous",
+                  web: "skip_previous",
+                }}
                 size={20}
               />
             </Pressable>
 
             <Pressable
               onPress={() =>
-                playbackState.playing ? pagerHandleRef.current?.pause() : pagerHandleRef.current?.play()
+                playbackState.playing
+                  ? pagerHandleRef.current?.pause()
+                  : pagerHandleRef.current?.play()
               }
-              hitSlop={8}>
+              hitSlop={8}
+            >
               <SymbolView
                 name={{
-                  ios: playbackState.playing ? 'pause.fill' : 'play.fill',
-                  android: playbackState.playing ? 'pause' : 'play_arrow',
-                  web: playbackState.playing ? 'pause' : 'play_arrow',
+                  ios: playbackState.playing ? "pause.fill" : "play.fill",
+                  android: playbackState.playing ? "pause" : "play_arrow",
+                  web: playbackState.playing ? "pause" : "play_arrow",
                 }}
                 size={30}
               />
             </Pressable>
 
-            <Pressable onPress={() => pagerHandleRef.current?.next()} hitSlop={8}>
+            <Pressable
+              onPress={() => pagerHandleRef.current?.next()}
+              hitSlop={8}
+            >
               <SymbolView
-                name={{ ios: 'forward.fill', android: 'skip_next', web: 'skip_next' }}
+                name={{
+                  ios: "forward.fill",
+                  android: "skip_next",
+                  web: "skip_next",
+                }}
                 size={20}
               />
             </Pressable>
           </ThemedView>
         )}
-
       </SafeAreaView>
     </ThemedView>
   );
@@ -317,25 +453,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    alignSelf: 'stretch',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    alignSelf: "stretch",
     maxWidth: MaxContentWidth,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.three,
     gap: Spacing.three,
   },
+  chromeGroup: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
   headerText: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
+  },
+  modeMenuWrap: {
+    zIndex: 10,
+    elevation: 10,
   },
   modeMenu: {
-    position: 'absolute',
+    position: "absolute",
     top: 56,
     right: Spacing.four,
-    zIndex: 10,
     width: 220,
     maxHeight: 500,
     borderRadius: Spacing.three,
@@ -355,7 +500,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
   },
   textSizeRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.one,
     paddingBottom: Spacing.two,
   },
@@ -363,13 +508,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   textSizeButtonInner: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
   },
   modeMenuTabs: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: Spacing.one,
   },
   modeMenuTab: {},
@@ -382,12 +527,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   playbackBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-    alignSelf: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-evenly",
+    alignSelf: "center",
     maxWidth: MaxContentWidth,
-    width: '100%',
+    width: "100%",
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.three,
     borderTopLeftRadius: Spacing.four,

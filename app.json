@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "islamic-app",
-    "slug": "islamic-app",
+    "name": "Amana",
+    "slug": "amana",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#D4A017",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -38,11 +38,19 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Islamic App uses your location to calculate accurate prayer times and the Qibla direction for where you are."
+          "locationWhenInUsePermission": "Amana uses your location to calculate accurate prayer times and the Qibla direction for where you are.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": "Amana uses your device's compass and motion sensors to point the Qibla direction toward the Kaaba."
         }
       ],
       "expo-notifications",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-widgets",
         {

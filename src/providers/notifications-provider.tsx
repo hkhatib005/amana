@@ -79,11 +79,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [loaded, setLoaded] = useState(false);
   const preferencesRef = useRef(preferences);
-  preferencesRef.current = preferences;
   const coordsRef = useRef(coords);
-  coordsRef.current = coords;
   const methodRef = useRef(method);
-  methodRef.current = method;
+  useEffect(() => {
+    preferencesRef.current = preferences;
+    coordsRef.current = coords;
+    methodRef.current = method;
+  }, [preferences, coords, method]);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {

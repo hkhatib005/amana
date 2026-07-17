@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Switch, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PageHeader } from '@/components/page-header';
@@ -34,9 +34,13 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <PageHeader title="Settings" />
 
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
         <ThemedText type="smallBold">Notifications</ThemedText>
         <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
           Turn on reminders per prayer using the bell icons on the Prayers tab.
@@ -104,6 +108,7 @@ export default function SettingsScreen() {
             </Pressable>
           ))}
         </ThemedView>
+        </ScrollView>
       </SafeAreaView>
     </ThemedView>
   );
@@ -118,9 +123,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignSelf: 'stretch',
     paddingHorizontal: Spacing.four,
+    maxWidth: MaxContentWidth,
+  },
+  scroll: {
+    alignSelf: 'stretch',
+    width: '100%',
+  },
+  scrollContent: {
     gap: Spacing.three,
     paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
   hint: {
     marginTop: -Spacing.two,

@@ -1,0 +1,16 @@
+diff --git a/node_modules/expo-widgets/ios/Widgets/RedBoxView.swift b/node_modules/expo-widgets/ios/Widgets/RedBoxView.swift
+index b0f76a5..b8cd43b 100644
+--- a/node_modules/expo-widgets/ios/Widgets/RedBoxView.swift
++++ b/node_modules/expo-widgets/ios/Widgets/RedBoxView.swift
+@@ -75,7 +75,10 @@ public struct FullSizeZStack<Content: View>: View {
+ 
+   public var body: some View {
+     if #available(iOS 17.0, *), kind == .widget {
+-      ZStack { content }.containerRelativeFrame([.horizontal, .vertical])
++      // WidgetKit refuses to render any top-level view without this and silently
++      // substitutes its own "please adopt containerBackground" placeholder instead —
++      // which would otherwise hide this very error view whenever layout evaluation fails.
++      ZStack { content }.containerRelativeFrame([.horizontal, .vertical]).containerBackground(.fill.tertiary, for: .widget)
+     } else {
+       ZStack { content }.frame(maxWidth: .infinity)
+     }

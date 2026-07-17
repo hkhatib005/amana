@@ -14,8 +14,7 @@ import { formatRelativeTime, getRecentReads, RecentRead } from '@/lib/quran-rece
 
 const JUZ_NUMBERS = Array.from({ length: 30 }, (_, i) => i + 1);
 
-const TOP_BAR_LINKS: { href: '/quran/notes' | '/quran/bookmarks' | '/quran/search'; sf: SFSymbol }[] = [
-  { href: '/quran/search', sf: 'magnifyingglass' },
+const TOP_BAR_LINKS: { href: '/quran/notes' | '/quran/bookmarks'; sf: SFSymbol }[] = [
   { href: '/quran/bookmarks', sf: 'bookmark.fill' },
   { href: '/quran/notes', sf: 'note.text' },
 ];
