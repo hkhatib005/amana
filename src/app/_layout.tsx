@@ -9,7 +9,7 @@ import { useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { OnboardingScreen } from '@/components/onboarding-screen';
 import { WelcomeCarousel } from '@/components/welcome-carousel';
-import { WidgetSync } from '@/components/widget-sync';
+import { WidgetSync } from '@/components/widget-sync'; // check again ,
 import { configureNotificationHandler } from '@/lib/notifications';
 import { getHasCompletedOnboarding } from '@/lib/onboarding';
 import { NotificationsProvider } from '@/providers/notifications-provider';
