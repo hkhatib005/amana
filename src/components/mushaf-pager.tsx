@@ -328,6 +328,10 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   const nowPlayingPlayer = useAudioPlayer();
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
   const isLockScreenActiveRef = useRef(false);
+  const playlistPlayingRef = useRef(playlistStatus.playing);
+  useEffect(() => {
+    playlistPlayingRef.current = playlistStatus.playing;
+  }, [playlistStatus.playing]);
 
   useEffect(() => {
     Asset.fromModule(require('@/assets/images/icon.png'))
@@ -352,8 +356,18 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     }
     const metadata = { title: activeChapterName, artist: reciterName, artworkUrl: artworkUri ?? undefined };
     if (!isLockScreenActiveRef.current) {
-      nowPlayingPlayer.setActiveForLockScreen(true, metadata, { showSeekForward: false, showSeekBackward: false });
+      nowPlayingPlayer.setActiveForLockScreen(true, metadata, {
+        showSeekForward: false,
+        showSeekBackward: false,
+        showNextTrack: true,
+        showPreviousTrack: true,
+      });
       isLockScreenActiveRef.current = true;
+      // The mirror effect below only re-runs when playlistStatus.playing *changes*, so if
+      // playback already started before this activation ran, nothing would otherwise sync
+      // the icon — bring it in line with the real state right away.
+      if (playlistPlayingRef.current) nowPlayingPlayer.play();
+      else nowPlayingPlayer.pause();
     } else {
       nowPlayingPlayer.updateLockScreenMetadata(metadata);
     }
@@ -366,6 +380,18 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
     if (playlistStatus.playing) nowPlayingPlayer.play();
     else nowPlayingPlayer.pause();
   }, [playlistStatus.playing, nowPlayingPlayer]);
+
+  // Report the active verse's position within its surah as the lock screen's scrub bar, so
+  // dragging it lands on a verse instead of a raw audio timestamp. Duration is versesCount - 1
+  // (not versesCount) so the bar actually reaches 100% on the surah's last verse instead of
+  // topping out one verse short.
+  useEffect(() => {
+    if (!isLockScreenActiveRef.current || !activeVerseKey) return;
+    const [chapterIdStr, verseNumberStr] = activeVerseKey.split(':');
+    const chapter = chapters.find((c) => c.id === Number(chapterIdStr));
+    if (!chapter) return;
+    nowPlayingPlayer.setNowPlayingProgress(Number(verseNumberStr) - 1, Math.max(chapter.versesCount - 1, 1));
+  }, [activeVerseKey, chapters, nowPlayingPlayer]);
 
   useEffect(
     () => () => {
@@ -442,8 +468,12 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   }, [pagesData, playlist, reciterId]);
 
   const playVerse = useCallback(
-    async (verseKey: string) => {
+    async (verseKey: string, options?: { toggleIfSame?: boolean; autoplay?: boolean }) => {
+      const toggleIfSame = options?.toggleIfSame ?? true;
+      const autoplay = options?.autoplay ?? true;
+
       if (verseKey === playlistVerseKeysRef.current[playlistStatus.currentIndex]) {
+        if (!toggleIfSame) return;
         if (playlistStatus.playing) {
           playlist.pause();
         } else {
@@ -452,11 +482,16 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
         return;
       }
 
-      // Queue the tapped verse through the end of its page, then every already-loaded
-      // consecutive page after it, so playback can flow forward without interruption.
+      // Resolve which page the verse lives on, fetching forward from the chapter's start page
+      // if it isn't loaded yet (e.g. a lock screen jump to a surah/verse never scrolled to).
+      // Uses a local copy of pagesData rather than the possibly-stale `pagesData` closure, so a
+      // page fetched moments ago in this same call is usable immediately below instead of
+      // waiting for the state update to land on a future render.
       let startPage: number | null = null;
       let startIndex = 0;
-      for (const [pageNumberKey, verses] of Object.entries(pagesData)) {
+      const localPages: Record<number, QuranPageVerse[]> = { ...pagesData };
+
+      for (const [pageNumberKey, verses] of Object.entries(localPages)) {
         const idx = verses.findIndex((v) => v.key === verseKey);
         if (idx !== -1) {
           startPage = Number(pageNumberKey);
@@ -464,12 +499,36 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
           break;
         }
       }
+
+      if (startPage === null) {
+        const chapterId = Number(verseKey.split(':')[0]);
+        const chapter = chapters.find((c) => c.id === chapterId);
+        if (chapter) {
+          for (let page = chapter.startPage; page <= TOTAL_MUSHAF_PAGES; page += 1) {
+            const verses = localPages[page] ?? (await getPageVerses(page));
+            if (!localPages[page]) {
+              localPages[page] = verses;
+              setPagesData((prev) => (prev[page] ? prev : { ...prev, [page]: verses }));
+            }
+            const idx = verses.findIndex((v) => v.key === verseKey);
+            if (idx !== -1) {
+              startPage = page;
+              startIndex = idx;
+              break;
+            }
+            if (verses[0] && verses[0].chapterId > chapterId) break;
+          }
+        }
+      }
+
       if (startPage === null) return;
 
-      const queue: QuranPageVerse[] = [...pagesData[startPage].slice(startIndex)];
+      // Queue the verse through the end of its page, then every already-loaded consecutive
+      // page after it, so playback can flow forward without interruption.
+      const queue: QuranPageVerse[] = [...localPages[startPage].slice(startIndex)];
       let page = startPage + 1;
-      while (pagesData[page]) {
-        queue.push(...pagesData[page]);
+      while (localPages[page]) {
+        queue.push(...localPages[page]);
         page += 1;
       }
 
@@ -489,13 +548,58 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
         });
         playlistVerseKeysRef.current = keys;
         playlistThroughPageRef.current = page - 1;
-        playlist.play();
+        if (autoplay) playlist.play();
       } finally {
         setLoadingVerseKey(null);
       }
     },
-    [pagesData, playlist, playlistStatus.currentIndex, playlistStatus.playing, reciterId],
+    [pagesData, chapters, playlist, playlistStatus.currentIndex, playlistStatus.playing, reciterId],
   );
+
+  // Mirrors the latest values the remote-command listener needs, so the listener effect below
+  // doesn't have to depend on activeVerseKey/chapters directly — those change on essentially
+  // every verse transition during normal playback, which would tear down and re-add the native
+  // listener that often (and risk missing a command in the gap).
+  const latestPlaybackRef = useRef({ activeVerseKey, playing: playlistStatus.playing, chapters });
+  useEffect(() => {
+    latestPlaybackRef.current = { activeVerseKey, playing: playlistStatus.playing, chapters };
+  }, [activeVerseKey, playlistStatus.playing, chapters]);
+
+  // Lock screen next/previous jump a whole surah rather than one verse, and scrubbing moves
+  // between verses within the current surah rather than seeking audio seconds. Both use
+  // toggleIfSame: false / autoplay: <previous playing state> so landing back on the verse
+  // already playing is a no-op and doesn't force playback to start or stop.
+  useEffect(() => {
+    const subscription = nowPlayingPlayer.addListener('remoteCommand', (event) => {
+      if (event.type === 'play') {
+        playlist.play();
+        return;
+      }
+      if (event.type === 'pause') {
+        playlist.pause();
+        return;
+      }
+
+      const { activeVerseKey: currentVerseKey, playing, chapters: currentChapters } = latestPlaybackRef.current;
+      if (!currentVerseKey) return;
+      const chapterId = Number(currentVerseKey.split(':')[0]);
+
+      if (event.type === 'nextTrack' || event.type === 'previousTrack') {
+        const targetChapterId = chapterId + (event.type === 'nextTrack' ? 1 : -1);
+        if (!currentChapters.some((c) => c.id === targetChapterId)) return;
+        playVerse(`${targetChapterId}:1`, { toggleIfSame: false, autoplay: playing });
+        return;
+      }
+
+      if (event.type === 'changePosition') {
+        const chapter = currentChapters.find((c) => c.id === chapterId);
+        if (!chapter) return;
+        const verseNumber = Math.min(Math.max(Math.round(event.positionTime) + 1, 1), chapter.versesCount);
+        playVerse(`${chapterId}:${verseNumber}`, { toggleIfSame: false, autoplay: playing });
+      }
+    });
+    return () => subscription.remove();
+  }, [nowPlayingPlayer, playVerse, playlist]);
 
   const handleVerseLongPress = useCallback(
     async (verse: QuranPageVerse) => {

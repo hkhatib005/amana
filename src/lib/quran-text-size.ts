@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = 'quranTextSizeScale';
 
-export const DEFAULT_TEXT_SIZE_SCALE = 1;
+export const DEFAULT_TEXT_SIZE_SCALE = 1.15;
 
 export const TEXT_SIZE_OPTIONS = [
   { label: 'Small', scale: 0.85 },

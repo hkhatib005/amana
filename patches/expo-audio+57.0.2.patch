@@ -1,0 +1,231 @@
+diff --git a/node_modules/expo-audio/build/AudioConstants.d.ts b/node_modules/expo-audio/build/AudioConstants.d.ts
+index cfd92ad..cba48a3 100644
+--- a/node_modules/expo-audio/build/AudioConstants.d.ts
++++ b/node_modules/expo-audio/build/AudioConstants.d.ts
+@@ -10,6 +10,14 @@ export type AudioLockScreenOptions = {
+      * Whether the seek backward button should be displayed on the lock screen.
+      */
+     showSeekBackward?: boolean;
++    /**
++     * Whether the next-track button should be displayed on the lock screen (iOS only).
++     */
++    showNextTrack?: boolean;
++    /**
++     * Whether the previous-track button should be displayed on the lock screen (iOS only).
++     */
++    showPreviousTrack?: boolean;
+     /**
+      * Whether the audio is a live stream. When `true`, the lock screen will hide the duration
+      * and scrub bar, and disable seek controls.
+diff --git a/node_modules/expo-audio/build/AudioModule.types.d.ts b/node_modules/expo-audio/build/AudioModule.types.d.ts
+index f3ae4ee..f1d6507 100644
+--- a/node_modules/expo-audio/build/AudioModule.types.d.ts
++++ b/node_modules/expo-audio/build/AudioModule.types.d.ts
+@@ -178,6 +178,15 @@ export declare class AudioPlayer extends SharedObject<AudioEvents> {
+      * @param metadata The metadata to display (title, artist, album, artwork).
+      */
+     updateLockScreenMetadata(metadata: AudioMetadata): void;
++    /**
++     * Overrides the elapsed/duration values reported to the lock screen's scrub bar for this
++     * player, instead of the player's own (real) playback position. Useful for a metadata-only
++     * player standing in for a queue or playlist, where the "timeline" isn't raw audio seconds.
++     * This method only has an effect if this player is currently active for lock screen controls.
++     * @param elapsed The position to report, in the same unit as `duration`.
++     * @param duration The total length to report.
++     */
++    setNowPlayingProgress(elapsed: number, duration: number): void;
+     /**
+      * Removes this player from lock screen controls if it's currently active.
+      * This will clear the lock screen's now playing info.
+@@ -222,6 +231,22 @@ export type AudioEvents = {
+     playbackStatusUpdate(status: AudioStatus): void;
+     /** Fired when audio sampling is enabled and new sample data is available. */
+     audioSampleUpdate(data: AudioSample): void;
++    /**
++     * Fired when a lock screen / Control Center remote command is invoked on this player
++     * (iOS only). Only enabled commands (see `AudioLockScreenOptions`) will ever fire.
++     */
++    remoteCommand(event: {
++        type: 'play';
++    } | {
++        type: 'pause';
++    } | {
++        type: 'nextTrack';
++    } | {
++        type: 'previousTrack';
++    } | {
++        type: 'changePosition';
++        positionTime: number;
++    }): void;
+ };
+ export declare class AudioRecorder extends SharedObject<RecordingEvents> {
+     /**
+diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
+index d265606..d068c24 100644
+--- a/node_modules/expo-audio/ios/AudioModule.swift
++++ b/node_modules/expo-audio/ios/AudioModule.swift
+@@ -269,9 +269,14 @@ public class AudioModule: Module {
+         }
+       }
+ 
++      Function("setNowPlayingProgress") { (player: AudioPlayer, elapsed: Double, duration: Double) in
++        player.setNowPlayingProgress(elapsed: elapsed, duration: duration)
++      }
++
+       Function("clearLockScreenControls") { (player: AudioPlayer) in
+         if player.isActiveForLockScreen {
+           player.metadata = nil
++          player.nowPlayingProgressOverride = nil
+           player.isActiveForLockScreen = false
+           MediaController.shared.setActivePlayer(nil)
+         }
+diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
+index 0742943..1d68f62 100644
+--- a/node_modules/expo-audio/ios/AudioPlayer.swift
++++ b/node_modules/expo-audio/ios/AudioPlayer.swift
+@@ -12,6 +12,10 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+   var pitchCorrectionQuality: AVAudioTimePitchAlgorithm = .timeDomain
+   var isActiveForLockScreen = false
+   var metadata: Metadata?
++  // Overrides the lock screen's reported elapsed/duration for players (like the Quran reader's
++  // metadata-only Now Playing player) whose own `ref` never has real audio loaded, so `duration`/
++  // `currentTime` below would otherwise always read as 0.
++  var nowPlayingProgressOverride: (elapsed: Double, duration: Double)?
+   var currentRate: Float = 1.0 {
+     didSet {
+       currentRate = max(0, currentRate)
+@@ -164,6 +168,13 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+     }
+   }
+ 
++  func setNowPlayingProgress(elapsed: Double, duration: Double) {
++    nowPlayingProgressOverride = (elapsed: elapsed, duration: duration)
++    if isActiveForLockScreen {
++      MediaController.shared.updateNowPlayingInfo(for: self)
++    }
++  }
++
+   func updateStatus(with dict: [String: Any]) {
+     var arguments = currentStatus()
+     arguments.merge(dict) { _, new in
+diff --git a/node_modules/expo-audio/ios/AudioRecords.swift b/node_modules/expo-audio/ios/AudioRecords.swift
+index 33db27c..a756246 100644
+--- a/node_modules/expo-audio/ios/AudioRecords.swift
++++ b/node_modules/expo-audio/ios/AudioRecords.swift
+@@ -69,6 +69,8 @@ struct Metadata: Record {
+ struct LockScreenOptions: Record {
+   @Field var showSeekForward: Bool = false
+   @Field var showSeekBackward: Bool = false
++  @Field var showNextTrack: Bool = false
++  @Field var showPreviousTrack: Bool = false
+   @Field var isLiveStream: Bool? = false
+ }
+ 
+diff --git a/node_modules/expo-audio/ios/MediaController.swift b/node_modules/expo-audio/ios/MediaController.swift
+index e977f57..7f88c86 100644
+--- a/node_modules/expo-audio/ios/MediaController.swift
++++ b/node_modules/expo-audio/ios/MediaController.swift
+@@ -79,6 +79,9 @@ class MediaController {
+       info[MPNowPlayingInfoPropertyIsLiveStream] = true
+       info.removeValue(forKey: MPMediaItemPropertyPlaybackDuration)
+       info.removeValue(forKey: MPNowPlayingInfoPropertyElapsedPlaybackTime)
++    } else if let override = player.nowPlayingProgressOverride {
++      info[MPMediaItemPropertyPlaybackDuration] = override.duration
++      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = override.elapsed
+     } else {
+       info[MPMediaItemPropertyPlaybackDuration] = player.duration
+       info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.currentTime
+@@ -237,7 +240,11 @@ class MediaController {
+         return .commandFailed
+       }
+ 
++      // This player only carries Now Playing metadata, not the real audio, so its own play/pause
++      // state (updated below, for the OS's play/pause icon) is not a reliable signal of user
++      // intent on its own — emit an explicit event so JS can drive the real player directly.
+       player.play(at: Float(player.currentRate > 0 ? player.currentRate : 1.0))
++      player.emit(event: "remoteCommand", payload: ["type": "play"])
+       return .success
+     }
+ 
+@@ -247,6 +254,7 @@ class MediaController {
+       }
+ 
+       player.ref.pause()
++      player.emit(event: "remoteCommand", payload: ["type": "pause"])
+       return .success
+     }
+ 
+@@ -257,8 +265,10 @@ class MediaController {
+ 
+       if player.isPlaying {
+         player.ref.pause()
++        player.emit(event: "remoteCommand", payload: ["type": "pause"])
+       } else {
+         player.play(at: Float(player.currentRate > 0 ? player.currentRate : 1.0))
++        player.emit(event: "remoteCommand", payload: ["type": "play"])
+       }
+       return .success
+     }
+@@ -269,9 +279,34 @@ class MediaController {
+         return .commandFailed
+       }
+ 
+-      let seekTime = CMTime(seconds: event.positionTime, preferredTimescale: 1)
+-      player.ref.seek(to: seekTime)
++      if player.nowPlayingProgressOverride != nil {
++        // This player is reporting a synthetic timeline (see setNowPlayingProgress), not real
++        // audio seconds, so a raw seek on `player.ref` would be meaningless. Hand the requested
++        // position off to JS instead, which maps it onto whatever timeline it reported.
++        player.emit(event: "remoteCommand", payload: ["type": "changePosition", "positionTime": event.positionTime])
++      } else {
++        let seekTime = CMTime(seconds: event.positionTime, preferredTimescale: 1)
++        player.ref.seek(to: seekTime)
++      }
++
++      return .success
++    }
++
++    remoteCommandCenter.nextTrackCommand.addTarget { [weak self] _ in
++      guard let player = self?.activePlayer else {
++        return .commandFailed
++      }
++
++      player.emit(event: "remoteCommand", payload: ["type": "nextTrack"])
++      return .success
++    }
++
++    remoteCommandCenter.previousTrackCommand.addTarget { [weak self] _ in
++      guard let player = self?.activePlayer else {
++        return .commandFailed
++      }
+ 
++      player.emit(event: "remoteCommand", payload: ["type": "previousTrack"])
+       return .success
+     }
+ 
+@@ -309,6 +344,8 @@ class MediaController {
+     remoteCommandCenter.changePlaybackPositionCommand.isEnabled = !isLiveStream
+     remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
+     remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
++    remoteCommandCenter.nextTrackCommand.isEnabled = options?.showNextTrack ?? false
++    remoteCommandCenter.previousTrackCommand.isEnabled = options?.showPreviousTrack ?? false
+   }
+ 
+   private func disableRemoteCommands() {
+@@ -318,6 +355,8 @@ class MediaController {
+     remoteCommandCenter.changePlaybackPositionCommand.isEnabled = false
+     remoteCommandCenter.skipForwardCommand.isEnabled = false
+     remoteCommandCenter.skipBackwardCommand.isEnabled = false
++    remoteCommandCenter.nextTrackCommand.isEnabled = false
++    remoteCommandCenter.previousTrackCommand.isEnabled = false
+ 
+     // Remove event targets
+     remoteCommandCenter.playCommand.removeTarget(self)
+@@ -326,5 +365,7 @@ class MediaController {
+     remoteCommandCenter.changePlaybackPositionCommand.removeTarget(self)
+     remoteCommandCenter.skipForwardCommand.removeTarget(self)
+     remoteCommandCenter.skipBackwardCommand.removeTarget(self)
++    remoteCommandCenter.nextTrackCommand.removeTarget(self)
++    remoteCommandCenter.previousTrackCommand.removeTarget(self)
+   }
+ }
