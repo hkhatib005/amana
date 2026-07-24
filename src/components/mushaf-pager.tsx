@@ -557,13 +557,14 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
   );
 
   // Mirrors the latest values the remote-command listener needs, so the listener effect below
-  // doesn't have to depend on activeVerseKey/chapters directly — those change on essentially
-  // every verse transition during normal playback, which would tear down and re-add the native
-  // listener that often (and risk missing a command in the gap).
-  const latestPlaybackRef = useRef({ activeVerseKey, playing: playlistStatus.playing, chapters });
+  // doesn't have to depend on activeVerseKey/chapters/playVerse directly — those all change on
+  // essentially every verse transition during normal playback (playVerse is recreated because its
+  // useCallback deps include playlistStatus.currentIndex/playing), which would tear down and
+  // re-add the native listener that often (and risk missing a command in the gap).
+  const latestPlaybackRef = useRef({ activeVerseKey, playing: playlistStatus.playing, chapters, playVerse });
   useEffect(() => {
-    latestPlaybackRef.current = { activeVerseKey, playing: playlistStatus.playing, chapters };
-  }, [activeVerseKey, playlistStatus.playing, chapters]);
+    latestPlaybackRef.current = { activeVerseKey, playing: playlistStatus.playing, chapters, playVerse };
+  }, [activeVerseKey, playlistStatus.playing, chapters, playVerse]);
 
   // Lock screen next/previous jump a whole surah rather than one verse, and scrubbing moves
   // between verses within the current surah rather than seeking audio seconds. Both use
@@ -580,14 +581,19 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
         return;
       }
 
-      const { activeVerseKey: currentVerseKey, playing, chapters: currentChapters } = latestPlaybackRef.current;
+      const {
+        activeVerseKey: currentVerseKey,
+        playing,
+        chapters: currentChapters,
+        playVerse: latestPlayVerse,
+      } = latestPlaybackRef.current;
       if (!currentVerseKey) return;
       const chapterId = Number(currentVerseKey.split(':')[0]);
 
       if (event.type === 'nextTrack' || event.type === 'previousTrack') {
         const targetChapterId = chapterId + (event.type === 'nextTrack' ? 1 : -1);
         if (!currentChapters.some((c) => c.id === targetChapterId)) return;
-        playVerse(`${targetChapterId}:1`, { toggleIfSame: false, autoplay: playing });
+        latestPlayVerse(`${targetChapterId}:1`, { toggleIfSame: false, autoplay: playing });
         return;
       }
 
@@ -595,11 +601,11 @@ export const MushafPager = forwardRef<MushafPagerHandle, MushafPagerProps>(funct
         const chapter = currentChapters.find((c) => c.id === chapterId);
         if (!chapter) return;
         const verseNumber = Math.min(Math.max(Math.round(event.positionTime) + 1, 1), chapter.versesCount);
-        playVerse(`${chapterId}:${verseNumber}`, { toggleIfSame: false, autoplay: playing });
+        latestPlayVerse(`${chapterId}:${verseNumber}`, { toggleIfSame: false, autoplay: playing });
       }
     });
     return () => subscription.remove();
-  }, [nowPlayingPlayer, playVerse, playlist]);
+  }, [nowPlayingPlayer, playlist]);
 
   const handleVerseLongPress = useCallback(
     async (verse: QuranPageVerse) => {
